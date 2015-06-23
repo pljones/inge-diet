@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en" >
+    <head>
+        <meta charset="UTF-8">
+        <meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="description" content="Daily dietary consumption capture and totals reporting" />
+        <meta name="keywords" content="diet" />
+
+        <title>Daily dietary consumption capture and totals reporting</title>
+
+
+        <script src="//ajax.googleapis.com/ajax/libs/angularjs/1.3.15/angular.js"></script>
+        <script src="//ajax.googleapis.com/ajax/libs/angularjs/1.3.15/angular-resource.js"></script>
+        <script src="//ajax.googleapis.com/ajax/libs/angularjs/1.3.15/angular-route.js"></script>
+        <script src="//ajax.googleapis.com/ajax/libs/angularjs/1.3.15/angular-sanitize.js"></script>
+        <script src="//ajax.googleapis.com/ajax/libs/angularjs/1.3.15/angular-animate.js"></script>
+        <script src="//ui-grid.info/release/ui-grid-unstable.js"></script>
+        <script src="ui-bootstrap-tpls-0.13.0.js"></script>
+        <script>
+            //<![CDATA[
+
+            var energyDensities = {
+                fat: 9,
+                ethanol: 7,
+                protein: 4,
+                carbohydrate: 4,
+                organicAcid: 3,
+                polyol: 2.4,
+                fibre: 2
+            };
+
+            var dietServices = angular.module('info.drealm.diet.services', ['ngResource', 'ngRoute']);
+            dietServices
+            .factory('Food', ['$resource', function($resource) {
+                return $resource('rest/foods/');
+            }])
+            .factory('DietEntry', ['$resource', function($resource) {
+                return $resource(
+                    'rest/diet_entries/:id', {},
+                    {
+                        queryByDate: {
+                            method: 'GET',
+                            params: {
+                                entry_date: '@entry_date'
+                            },
+                            url: 'rest/diet_entries/entry_date/:entry_date',
+                            isArray: true
+                        },
+                        update: {
+                            method: 'PUT',
+                            params: {
+                                id: '@id'
+                            }
+                        }
+                    }
+                );
+            }])
+            ;
+
+            var dietControllers = angular.module('info.drealm.diet.controllers', [
+                'info.drealm.diet.services'
+            ]);
+            dietControllers
+            .controller('Diet', ['$scope', '$filter', 'Food', 'DietEntry', function($scope, $filter, Food, DietEntry) {
+
+                $scope.isOpen = false;
+                $scope.selectedDate = undefined;
+                $scope.sdComparable = undefined;
+                $scope.getSetSelectedDate = function(_newValue) {
+                    if (_newValue && selectedDate != _newValue) {
+                        $scope.selectedDate = _newValue;
+                        $scope.sdComparable = $filter('date')($scope.selectedDate, 'yyyy-MM-dd', 0);
+                        getFoodItems();
+                    }
+                    return $scope.selectedDate;
+                };
+
+                $scope.today = new Date();
+                $scope.setToday = function() {
+                    $scope.getSetSelectedDate($scope.today);
+                };
+
+                $scope.totals = {
+                    'calories': { label: 'Calories', value: 0 },
+                    'wwpoints': { label: 'WW Points', value: 0 },
+                    'protein': { label: 'Protein', value: 0 },
+                    'carbohydrate': { label: 'Carbohydrate', value: 0 },
+                    'sugar': { label: 'Sugar', text: "of which Sugars", value: 0 },
+                    'fat': { label: 'Fats', value: 0 },
+                    'fibre': { label: 'Fibre', value: 0 },
+                    'fruitnveg': { label: 'Ptns Fruit/Veg', value: 0 },
+                    'sodium': { label: 'Sodium', value: 0 },
+                    'potassium': { label: 'Potassium', value: 0 },
+                };
+
+                $scope.foods = [];
+                $scope.dietEntries = [];
+
+                var getFoodItems = function() {
+
+                    $scope.foodItems = [];
+
+                    if ($scope.foods.length === 0) {
+                        return;
+                    }
+
+                    angular.forEach($scope.totals, function(total, id) {
+                        total.value = 0;
+                        if (typeof energyDensities[id] != 'undefined') {
+                            total.percentage = 0;
+                        }
+                    });
+
+                    var id = 0;
+                    var dietEntries = DietEntry.queryByDate(
+                        { entry_date: $scope.sdComparable, by: 'id' },
+                        function() { // success
+                            angular.forEach(dietEntries, function(dietEntry) {
+                                var foodItem = new FoodItem(dietEntry);
+                                foodItem.id = id++;
+                                $scope.foodItems.push(foodItem);
+                            });
+                            calculateTotals();
+                        },
+                        function() { // error
+                            console.log('DietEntry.queryByDate error');
+                            angular.forEach(arguments, function(a) { console.log(a); });
+                        }
+                    );
+                };
+
+                var calculateTotals = function() {
+                    var todaysFoodItems = $scope.foodItems;
+
+                    angular.forEach($scope.totals, function(total, id) {
+                        total.value = 0;
+                        if (typeof energyDensities[id] != 'undefined') {
+                            total.percentage = 0;
+                        }
+                    });
+
+                    // Get total calories
+                    angular.forEach(todaysFoodItems, function(foodItem, index, array) {
+                        $scope.totals.calories.value += foodItem.calories();
+                    });
+
+                    // Get total for other entry nutrient
+                    angular.forEach(todaysFoodItems, function(foodItem, index, array) {
+                        angular.forEach($scope.totals, function(total, id) {
+                            if (id != 'calories' && typeof foodItem[id] !== 'undefined') {
+                                total.value += foodItem[id]();
+                            }
+                        });
+                    });
+
+                    // Get percentage of daily calories for each nutrient
+                    angular.forEach($scope.totals, function(total, id) {
+                        if(id != 'calories' && typeof energyDensities[id] != 'undefined' && $scope.totals.calories.value > 0) {
+                            total.percentage = 100 * (total.value * energyDensities[id]) / $scope.totals.calories.value;
+                        }
+                    });
+
+                };
+
+                var FoodItem = function(dietEntry) {
+                    var self = this;
+
+                    this.save = function() {
+                        DietEntry.update(self.dietEntry,
+                            function() { // success
+                                calculateTotals();
+                            },
+                            function() { // error
+                                console.log('DietEntry.update error');
+                                angular.forEach(arguments, function(a) { console.log(a); });
+                                self.dietEntry = DietEntry.get({id: self.id});
+                                calculateTotals();
+                            }
+                        );
+                    }
+
+                    this.id = 0 + dietEntry.id;
+                    this.dietEntry = dietEntry;
+
+                    this.getSetDate = function(_newValue) {
+                        if (arguments.length && self.dietEntry.entry_date != $filter('date')(_newValue, 'yyyy-MM-dd', 0)) {
+                            self.dietEntry.entry_date = $filter('date')(_newValue, 'yyyy-MM-dd', 0);
+                            self.save();
+                        }
+                        return self.dietEntry.entry_date;
+                    };
+
+                    this.findFood = function(foodId) { return $filter('filter')($scope.foods, function(food, index, foods) { return food.id === foodId; }, true).pop(); };
+                    this.food = self.findFood(self.dietEntry.food_id);
+
+                    this.getSetFoodId = function(_newValue) {
+                        if (arguments.length && self.dietEntry.food_id != _newValue) {
+                            self.dietEntry.food_id = _newValue;
+                            self.food = self.findFood(dietEntry.food_id);
+                            self.save();
+                        }
+                        return self.dietEntry.food_id;
+                    };
+                    this.getSetQuantity = function(_newValue) {
+                        if (arguments.length && self.dietEntry.quantity != _newValue) {
+                            self.dietEntry.quantity = _newValue;
+                            self.save();
+                        }
+                        return self.dietEntry.quantity;
+                    };
+
+                    this.calculate =    function(what) { return self.dietEntry.quantity * (self.food[what] || 0); };
+                    this.calories =     function() { return self.calculate('calories'); };
+                    this.wwpoints =     function() { return self.calculate('wwpoints'); };
+                    this.protein =      function() { return self.calculate('protein'); };
+                    this.carbohydrate = function() { return self.calculate('carbohydrate'); };
+                    this.sugar =        function() { return self.calculate('sugar'); };
+                    this.fat =          function() { return self.calculate('fat'); };
+                    this.fibre =        function() { return self.calculate('fibre'); };
+                    this.fruitnveg =    function() { return self.calculate('fruitnveg'); };
+                    this.sodium =       function() { return self.calculate('sodium'); };
+                    this.potassium =    function() { return self.calculate('potassium'); };
+
+                };
+
+                $scope.deleteFoodItem = function(foodItem) {
+                    var i = $scope.foodItems.indexOf(foodItem);
+                    if (i < 0) {
+                        return;
+                    }
+                    DietEntry.delete(foodItem.dietEntry,
+                        function() { // success
+                            $scope.foodItems.splice(i, 1);
+                            calculateTotals();
+                        },
+                        function() { // error
+                            console.log('DietEntry.$delete error');
+                            angular.forEach(arguments, function(a) { console.log(a); });
+                            getFoodItems();
+                        }
+                    );
+                };
+
+                $scope.addFoodItem = function() {
+                    var dietEntry = {
+                        id:         -1,
+                        entry_date: $scope.sdComparable,
+                        food_id:    $scope.foods[0].id,
+                        quantity:   1
+                    };
+                    DietEntry.save(dietEntry,
+                        function(response) { // success
+                            dietEntry.id = response.id;
+                            var foodItem = new FoodItem(dietEntry);
+                            $scope.foodItems.push(foodItem);
+                            calculateTotals();
+                        },
+                        function() { // error
+                            console.log('DietEntry.save error');
+                            angular.forEach(arguments, function(a) { console.log(a); });
+                            getFoodItems();
+                        }
+                    );
+                };
+
+                // ------------------------------
+
+                $scope.foods = Food.query({by: 'name'},
+                    function() { // success
+                        $scope.setToday();
+                    },
+                    function() { //error
+                        console.log('Food.query error');
+                        angular.forEach(arguments, function(a) { console.log(a); });
+                    }
+                );
+
+
+            }])
+            ;
+
+            var dietDirectives = angular.module('info.drealm.diet.directives', []);
+            dietDirectives
+            .directive('dietDaily', ['$parse', function($parse) {
+                return {
+                    restrict: 'E',
+                    scope: true,
+                    link: function(scope, element, attrs) {
+                        var isTotal = (typeof attrs.total !== 'undefined') || (typeof attrs.percentage === 'undefined');
+                        scope.labelCols = isTotal ? '4' : '5';
+                        scope.label = attrs.text || (isTotal ? 'Total ' : 'Percentage ') + scope.totals[attrs.of].label;
+                        scope.what = scope.totals[attrs.of];
+                        scope.which = isTotal ? 'value' : 'percentage';
+                    },
+                    template: '<div class="form-inline"><label for="{{which}}_{{what}}" class="col-xs-7 col-sm-4 control-label">{{label}}</label><input type="text" class="col-xs-3 col-sm-1 form-control" style="width: auto;" size="7" readonly value="{{what[which] | number: 2}}" name="{{which}}_{{what}}" data-ng-bind="what[which]" /></div>'
+                };
+            }])
+            .directive('dietDetail', ['$parse', function($parse) {
+                var i = 0;
+                return {
+                    restrict: 'E',
+                    scope: true,
+                    link: function(scope, element, attrs) {
+                        scope.value = $parse('foodItem.' + attrs.of + '()');
+                    },
+                    template: '<div class="col-xs-1"><input type="text" class="col-xs-1 form-control" value="{{value() | number: 2}}" data-ng-bind="value()" readonly /></div>'
+                };
+            }])
+            ;
+
+            var dietApp = angular.module('info.drealm.diet.app', [
+                'ngSanitize',
+                'ui.bootstrap',
+                'ui.grid',
+                'info.drealm.diet.controllers',
+                'info.drealm.diet.directives'
+            ]);
+
+            // ]]>
+        </script>
+
+        <link rel="stylesheet" type="text/css" href="/css/drealm.css" />
+        <link rel="stylesheet" type="text/css" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/css/bootstrap.css" />
+        <link rel="stylesheet" type="text/css" href="https://maxcdn.bootstrapcdn.com/bootswatch/3.3.4/lumen/bootstrap.min.css">
+        <link rel="stylesheet" type="text/css" href="http://ui-grid.info/release/ui-grid-unstable.css" />
+    </head>
+
+    <body>
+        <div data-ng-app="info.drealm.diet.app" data-ng-controller="Diet" class="container-fluid text-primary bg-primary">
+
+            <div>&nbsp;</div>
+
+            <div class="well">
+                <div class="row bg-default" id="datePicker">
+                    <div class="col-xs-9 col-sm-12"><div class="row">
+                        <div class="form-horizontal">
+                            <div class="form-group">
+                                <label for="selectedDate" class="col-xs-3 col-sm-1 control-label">Date</label>
+                                <div class="col-xs-2 col-sm-1 col-md-1 input-group">
+                                    <input type="date" class="form-control"
+                                        name="selectedDate" id="selectedDate"
+                                        datepicker-popup show-button-bar="false" show-weeks="false" is-open="isOpen" max-date="today"
+                                        data-ng-click="isOpen = !isOpen; $event.preventDefault();"
+                                        data-ng-required="true"
+                                        data-ng-model="getSetSelectedDate" data-ng-model-options="{getterSetter: true}"
+                                        />
+                                    <span class="input-group-btn"><input type="button" class="btn btn-primary" id="today" value="Today" data-ng-click="setToday()" /></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div></div>
+                    <div class="visible-xs-block"><div class="col-xs-3 col-sm-12" data-ng-init="xsTotalsCollapsed = true">
+                        <button" class="btn btn-info" data-ng-click="xsTotalsCollapsed = !xsTotalsCollapsed">{{xsTotalsCollapsed ? 'Show' : 'Hide'}} Totals</button>
+                    </div></div>
+                </div>
+
+                <div class="hidden-xs row bg-default" id="dateSummaryNotXS">
+                    <div class="col-sm-16 form-horizontal">
+                        <div class="form-group">
+                            <div class="col-sm-4"><diet-daily total of="calories"></diet-daily></div>
+                            <div class="col-sm-4"><diet-daily total of="fibre"></diet-daily></div>
+                            <div class="col-sm-4"><diet-daily total of="wwpoints" text="Total WW Points"></diet-daily></div>
+                            <div class="col-sm-4"><diet-daily total of="protein"></diet-daily></div>
+                            <div class="col-sm-4"><diet-daily total of="fruitnveg" text="Total Ptns Fruit/Veg"></diet-daily></div>
+                            <div class="col-sm-4"><diet-daily percentage of="protein"></diet-daily></div>
+                            <div class="col-sm-4"><diet-daily total of="carbohydrate"></diet-daily></div>
+                            <!--div class="col-sm-4"><diet-daily total of="sugar" text="of which Sugars"></diet-daily></div-->
+                            <div class="col-sm-4"><diet-daily total of="sodium"></diet-daily></div>
+                            <div class="col-sm-4"><diet-daily percentage of="carbohydrate"></diet-daily></div>
+                            <div class="col-sm-4"><diet-daily total of="fat"></diet-daily></div>
+                            <div class="col-sm-4"><diet-daily total of="potassium"></diet-daily></div>
+                            <div class="col-sm-4"><diet-daily percentage of="fat"></diet-daily></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="visible-xs-block row bg-default" id="dateSummaryXS">
+                    <div class="col-xs-16 form-horizontal">
+                        <div class="form-group">
+                            <div class="col-xs-16"><diet-daily total of="calories"></diet-daily></div>
+                            <div class="col-xs-16"><diet-daily total of="protein"></diet-daily></div>
+                            <div collapse="xsTotalsCollapsed">
+                                <div class="col-xs-16"><diet-daily total of="carbohydrate"></diet-daily></div>
+                                <div class="col-xs-16"><diet-daily total of="fat"></diet-daily></div>
+                                <div class="col-xs-16"><diet-daily total of="fibre"></diet-daily></div>
+                                <div class="col-xs-16"><diet-daily total of="wwpoints" text="Total WW Points"></diet-daily></div>
+                                <div class="col-xs-16"><diet-daily total of="fruitnveg" text="Total Ptns Fruit/Veg"></diet-daily></div>
+                                <div class="col-xs-16"><diet-daily total of="sodium"></diet-daily></div><!--diet-daily total of="sugar" text="of which Sugars"></diet-daily-->
+                                <div class="col-xs-16"><diet-daily total of="potassium"></diet-daily></div>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <div collapse="xsTotalsCollapsed">
+                                <div class="col-xs-16"><diet-daily percentage of="protein"></diet-daily></div>
+                                <div class="col-xs-16"><diet-daily percentage of="carbohydrate"></diet-daily></div>
+                                <div class="col-xs-16"><diet-daily percentage of="fat"></diet-daily></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                </div>
+
+            <div class="well">
+                <div id="dateDetail" class="row">
+                    <div class="col-xs-12">
+                    <!--div class="row"><ul><li data-ng-repeat="food in foods track by $index">{{$index}}. {{food}}</li></ul></div-->
+                        <div class="row text-center">
+                            <div class="col-xs-16 col-sm-4 col-md-2 control-label">Food type</div>
+                            <div class="col-xs-4 col-sm-2 control-label">Quantity</div>
+                            <div class="col-xs-4 col-sm-2 control-label">Calories</div>
+
+                            <div class="col-xs-4 col-sm-1 control-label">Protein</div>
+                            <div class="hidden-xs col-sm-1 control-label">Carbohydrate</div>
+                            <div class="hidden-xs col-sm-1 control-label">Fats</div>
+
+                            <div class="hidden-xs  hidden-sm col-sm-1 control-label">Fibre</div>
+                            <div class="hidden-xs hidden-sm col-md-1 control-label">Ptns Fruit/Veg</div>
+
+                            <div class="hidden-xs hidden-sm col-md-1 control-label">Sodium</div>
+                            <div class="hidden-xs hidden-sm col-md-1 control-label">Potassium</div>
+
+                            <div class="hidden-xs hidden-sm col-md-1 control-label">WW Points</div>
+                        </div>
+                        <div class="row" data-ng-repeat="foodItem in foodItems">
+                            <div class="col-xs-16 col-sm-4 col-md-2">
+                                <div class="input-group">
+                                    <span class="input-group-btn"><button class="btn btn-danger" data-ng-click="deleteFoodItem(foodItem)">X</button></span>
+                                    <select
+                                        class="form-control"
+                                        data-ng-model="foodItem.getSetFoodId" data-ng-model-options="{getterSetter: true}"
+                                        data-ng-options="food.id as food.name for (key, food) in foods"
+                                    >
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-xs-4 col-sm-2 col-md-1"><input type="text" class="form-control"                     id="quantity" value="{{foodItem.quantity | number: 2}}" data-ng-model="foodItem.getSetQuantity" data-ng-model-options="{getterSetter: true}" /></div>
+                            <div class="col-xs-4 col-sm-2 col-md-1"><input type="text" class="form-control"            readonly id="calories" value="{{foodItem.calories() | number: 2}}" data-ng-bind="foodItem.calories()" /></div>
+                            <div class="col-xs-4 col-sm-1"><input type="text" class="form-control"                     readonly id="protein" value="{{foodItem.protein() | number: 2}}" data-ng-bind="foodItem.protein()" /></div>
+                            <div class="col-sm-1">         <input type="text" class="hidden-xs form-control"           readonly id="carbohydrate" value="{{foodItem.carbohydrate() | number: 2}}" data-ng-bind="foodItem.carbohydrate()" /></div>
+                            <div class="col-sm-1">         <input type="text" class="hidden-xs form-control"           readonly id="fat" value="{{foodItem.fat() | number: 2}}" data-ng-bind="foodItem.fat()" /></div>
+                            <div class="col-md-1">         <input type="text" class="hidden-xs hidden-sm form-control" readonly id="fibre" value="{{foodItem.fibre() | number: 2}}" data-ng-bind="foodItem.fibre()" /></div>
+                            <div class="col-md-1">         <input type="text" class="hidden-xs hidden-sm form-control" readonly id="fruitnveg" value="{{foodItem.fruitnveg() | number: 2}}" data-ng-bind="foodItem.fruitnveg()" /></div>
+                            <div class="col-md-1">         <input type="text" class="hidden-xs hidden-sm form-control" readonly id="sodium" value="{{foodItem.sodium() | number: 2}}" data-ng-bind="foodItem.sodium()" /></div>
+                            <div class="col-md-1">         <input type="text" class="hidden-xs hidden-sm form-control" readonly id="potassium" value="{{foodItem.potassium() | number: 2}}" data-ng-bind="foodItem.potassium()" /></div>
+                            <div class="col-md-1">         <input type="text" class="hidden-xs hidden-sm form-control" readonly id="wwpoints" value="{{foodItem.wwpoints() | number: 2}}" data-ng-bind="foodItem.wwpoints()" /></div>
+
+                        </div>
+                        <div class="row">
+                            <div class="col-xs-4 col-sm-1 form-group form-inline">
+                                <button class="btn btn-primary form-control" data-ng-click="addFoodItem()">+</button>
+                                <div>&nbsp;</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </body>
+</html>
