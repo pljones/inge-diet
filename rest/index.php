@@ -1,6 +1,6 @@
 <?php
-
-$dsn = '';
+require "db_strings.inc";
+$dsn = "mysql://$mysql_user:$mysql_password@$mysql_hostname/$mysql_schema";
 $clients = [];
 
 /**
@@ -74,7 +74,7 @@ ArrestDB::Serve('GET', '/(#any)/(#any)/(#any)', function ($table, $id, $data)
 
 	else if (empty($result) === true)
 	{
-		$result = ArrestDB::$HTTP[204];
+		//$result = ArrestDB::$HTTP[204];
 	}
 
 	return ArrestDB::Reply($result);
@@ -125,7 +125,7 @@ ArrestDB::Serve('GET', '/(#any)/(#num)?', function ($table, $id = null)
 
 	else if (empty($result) === true)
 	{
-		$result = ArrestDB::$HTTP[204];
+		//$result = ArrestDB::$HTTP[204];
 	}
 
 	else if (isset($id) === true)
@@ -153,7 +153,7 @@ ArrestDB::Serve('DELETE', '/(#any)/(#num)', function ($table, $id)
 
 	else if (empty($result) === true)
 	{
-		$result = ArrestDB::$HTTP[204];
+		//$result = ArrestDB::$HTTP[204];
 	}
 
 	else
@@ -194,112 +194,146 @@ if (in_array($http = strtoupper($_SERVER['REQUEST_METHOD']), ['POST', 'PUT']) ==
 
 ArrestDB::Serve('POST', '/(#any)', function ($table)
 {
-	if (empty($_POST) === true)
+	if (empty($_POST) === true || is_array($_POST) !== true)
 	{
-		$result = ArrestDB::$HTTP[204];
+        http_response_code(400);
+        return false;
 	}
 
-	else if (is_array($_POST) === true)
-	{
-		$queries = [];
+    $queries = [];
 
-		if (count($_POST) == count($_POST, COUNT_RECURSIVE))
-		{
-			$_POST = [$_POST];
-		}
+    if (count($_POST) == count($_POST, COUNT_RECURSIVE))
+    {
+        $_POST = [$_POST];
+    }
 
-		foreach ($_POST as $row)
-		{
-			$data = [];
+    foreach ($_POST as $row)
+    {
+        $data = [];
 
-			foreach ($row as $key => $value)
-			{
-				$data[sprintf('"%s"', $key)] = $value;
-			}
+        foreach ($row as $key => $value)
+        {
+            $data[sprintf('"%s"', $key)] = $value;
+        }
 
-			$query = array
-			(
-				sprintf('INSERT INTO "%s" (%s) VALUES (%s)', $table, implode(', ', array_keys($data)), implode(', ', array_fill(0, count($data), '?'))),
-			);
+        $query = array
+        (
+            sprintf('INSERT INTO "%s" (%s) VALUES (%s)', $table, implode(', ', array_keys($data)), implode(', ', array_fill(0, count($data), '?'))),
+        );
 
-			$queries[] = array
-			(
-				sprintf('%s;', implode(' ', $query)),
-				$data,
-			);
-		}
+        $queries[] = array
+        (
+            sprintf('%s;', implode(' ', $query)),
+            $data,
+        );
+    }
 
-		if (count($queries) > 1)
-		{
-			ArrestDB::Query()->beginTransaction();
+    $ids = array();
+    $expected = count($queries);
+    if ($expected > 1)
+    {
 
-			while (is_null($query = array_shift($queries)) !== true)
-			{
-				if (($result = ArrestDB::Query($query[0], $query[1])) === false)
-				{
-					ArrestDB::Query()->rollBack(); break;
-				}
-			}
+        ArrestDB::Query()->beginTransaction();
 
-			if (($result !== false) && (ArrestDB::Query()->inTransaction() === true))
-			{
-				$result = ArrestDB::Query()->commit();
-			}
-		}
+        while (is_null($query = array_shift($queries)) !== true)
+        {
+            $result = ArrestDB::Query($query[0], $query[1]);
+            if ($result === false)
+            {
+                break;
+            }
+            array_push($ids, $result);
+        }
 
-		else if (is_null($query = array_shift($queries)) !== true)
-		{
-			$result = ArrestDB::Query($query[0], $query[1]);
-		}
+        if (ArrestDB::Query()->inTransaction() === true)
+        {
+            if ($expected !== count($ids))
+            {
+                ArrestDB::Query()->rollBack();
+            }
+            else
+            {
+                ArrestDB::Query()->commit();
+            }
+        }
 
-		if ($result === false)
-		{
-			$result = ArrestDB::$HTTP[409];
-		}
+    }
 
-		else
-		{
-			$result = ArrestDB::$HTTP[201];
-		}
-	}
+    else if (is_null($query = array_shift($queries)) !== true)
+    {
+        $result = ArrestDB::Query($query[0], $query[1]);
+        if ($result !== false)
+        {
+            array_push($ids, $result);
+        }
+    }
+
+    if ($expected !== count($ids))
+    {
+        http_response_code(500);
+        $result = [ 'error' => sprintf('Not all rows inserted.  Expected %d.  Got %d', $expected, count($ids)) ];
+        for($i = 0; $i < count($ids); $i++)
+        {
+            array_push($result, [$i => $ids[$i]]);
+        }
+    }
+
+    else
+    {
+        http_response_code(201);
+        if (count($ids) === 1)
+        {
+            header(sprintf('Location: %s/%s', $_SERVER['PHP_SELF'], $result));
+        }
+
+        $query = sprintf('SELECT * FROM "%s" WHERE id in (%s)', $table, implode(', ', $ids));
+        $result = ArrestDB::Query($query);
+        if ($result === false)
+        {
+            http_response_code(500);
+            $result = [ 'error' => 'Error retrieving inserted rows.' ];
+        }
+        else if (count($ids) === 1)
+        {
+            $result = array_shift($result);
+        }
+    }
 
 	return ArrestDB::Reply($result);
 });
 
 ArrestDB::Serve('PUT', '/(#any)/(#num)', function ($table, $id)
 {
-	if (empty($GLOBALS['_PUT']) === true)
+	if (empty($GLOBALS['_PUT']) === true || is_array($GLOBALS['_PUT']) !== true)
 	{
-		$result = ArrestDB::$HTTP[204];
+        http_response_code(400);
+        return false;
 	}
 
-	else if (is_array($GLOBALS['_PUT']) === true)
-	{
-		$data = [];
+    $data = [];
 
-		foreach ($GLOBALS['_PUT'] as $key => $value)
-		{
-			$data[$key] = sprintf('"%s" = ?', $key);
-		}
+    foreach ($GLOBALS['_PUT'] as $key => $value)
+    {
+        $data[$key] = sprintf('"%s" = ?', $key);
+    }
 
-		$query = array
-		(
-			sprintf('UPDATE "%s" SET %s WHERE "%s" = ?', $table, implode(', ', $data), 'id'),
-		);
+    $query = array
+    (
+        sprintf('UPDATE "%s" SET %s WHERE "%s" = ?', $table, implode(', ', $data), 'id'),
+    );
 
-		$query = sprintf('%s;', implode(' ', $query));
-		$result = ArrestDB::Query($query, $GLOBALS['_PUT'], $id);
+    $query = sprintf('%s;', implode(' ', $query));
+    $result = ArrestDB::Query($query, $GLOBALS['_PUT'], $id);
 
-		if ($result === false)
-		{
-			$result = ArrestDB::$HTTP[409];
-		}
+    if ($result === false)
+    {
+        $result = ArrestDB::$HTTP[409];
+    }
 
-		else
-		{
-			$result = ArrestDB::$HTTP[200];
-		}
-	}
+    else
+    {
+        //$result = ArrestDB::$HTTP[200];
+    }
 
 	return ArrestDB::Reply($result);
 });
@@ -322,7 +356,7 @@ class ArrestDB
 			],
 		],
 		204 => [
-			'error' => [
+			'success' => [
 				'code' => 204,
 				'status' => 'No Content',
 			],
@@ -551,9 +585,9 @@ class ArrestDB
 		return $result;
 	}
 
+    public static $root = null;
 	public static function Serve($on = null, $route = null, $callback = null)
 	{
-		static $root = null;
 
 		if (isset($_SERVER['REQUEST_METHOD']) !== true)
 		{
