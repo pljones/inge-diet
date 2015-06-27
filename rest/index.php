@@ -18,12 +18,14 @@ if (strcmp(PHP_SAPI, 'cli') === 0)
 
 if ((empty($clients) !== true) && (in_array($_SERVER['REMOTE_ADDR'], (array) $clients) !== true))
 {
-	exit(ArrestDB::Reply(ArrestDB::$HTTP[403]));
+    http_response_code(403);
+	exit();
 }
 
 else if (ArrestDB::Query($dsn) === false)
 {
-	exit(ArrestDB::Reply(ArrestDB::$HTTP[503]));
+    http_response_code(503);
+	exit();
 }
 
 if (array_key_exists('_method', $_GET) === true)
@@ -69,12 +71,14 @@ ArrestDB::Serve('GET', '/(#any)/(#any)/(#any)', function ($table, $id, $data)
 
 	if ($result === false)
 	{
-		$result = ArrestDB::$HTTP[404];
+        http_response_code(404);
+        return;
 	}
 
 	else if (empty($result) === true)
 	{
-		//$result = ArrestDB::$HTTP[204];
+        http_response_code(204);
+        return;
 	}
 
 	return ArrestDB::Reply($result);
@@ -120,12 +124,14 @@ ArrestDB::Serve('GET', '/(#any)/(#num)?', function ($table, $id = null)
 
 	if ($result === false)
 	{
-		$result = ArrestDB::$HTTP[404];
+        http_response_code(404);
+        return;
 	}
 
 	else if (empty($result) === true)
 	{
-		//$result = ArrestDB::$HTTP[204];
+        http_response_code(204);
+        return;
 	}
 
 	else if (isset($id) === true)
@@ -148,12 +154,14 @@ ArrestDB::Serve('DELETE', '/(#any)/(#num)', function ($table, $id)
 
 	if ($result === false)
 	{
-		$result = ArrestDB::$HTTP[404];
+        http_response_code(404);
+        return;
 	}
 
 	else if (empty($result) === true)
 	{
-		//$result = ArrestDB::$HTTP[204];
+        http_response_code(204);
+        return;
 	}
 
 	else
@@ -327,7 +335,8 @@ ArrestDB::Serve('PUT', '/(#any)/(#num)', function ($table, $id)
 
     if ($result === false)
     {
-        $result = ArrestDB::$HTTP[409];
+        http_response_code(404);
+        return;
     }
 
     else
@@ -338,7 +347,8 @@ ArrestDB::Serve('PUT', '/(#any)/(#num)', function ($table, $id)
 	return ArrestDB::Reply($result);
 });
 
-exit(ArrestDB::Reply(ArrestDB::$HTTP[400]));
+http_response_code(400);
+exit('Request failed to match');
 
 class ArrestDB
 {
