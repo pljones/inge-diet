@@ -312,16 +312,15 @@
     </head>
 
     <body>
-        <div data-ng-app="info.drealm.diet.app" data-ng-controller="Diet" class="container-fluid text-primary bg-primary">
-
+        <div data-ng-app="info.drealm.diet.app" data-ng-controller="Diet" class="container-fluid text-default bg-default">
             <div>&nbsp;</div>
 
             <div class="well">
                 <div class="row bg-default" id="datePicker">
-                    <div class="col-xs-8 col-lg-12 form-horizontal">
-                        <div class="form-group form-inline">
-                            <label class="hidden-xs col-lg-3 control-label" for="selectedDate">Date</label>
-                            <div class="col-xs-1 col-lg-3 input-group">
+                    <div class="col-xs-8 col-sm-4 form-group">
+                        <div class="form-horizontal">
+                            <label class="hidden-xs col-sm-4 col-md-8 control-label" for="selectedDate">Date</label>
+                            <div class="col-xs-1 col-lg-7 input-group">
                                 <input type="date" class="form-control"
                                     name="selectedDate" id="selectedDate"
                                     datepicker-popup show-button-bar="false" show-weeks="false" is-open="isOpen"
@@ -336,47 +335,58 @@
                     <div data-ng-init="xsTotalsCollapsed = true"><div class="visible-xs-block col-xs-1">
                         <button class="btn btn-info" data-ng-click="xsTotalsCollapsed = !xsTotalsCollapsed">{{xsTotalsCollapsed ? 'Show' : 'Hide'}} Totals</button>
                     </div></div>
+                    <div class="visible-lg-block col-sm-4">&nbsp;</div>
+                    <div><div class="visible-lg-block col-sm-4">
+                        <button class="btn btn-warning pull-right" data-ng-click="foodEditor()">Food Editor</button>
+                    </div></div>
                 </div>
 
                 <div class="row bg-default hidden-xs" id="dateSummaryNotXS">
-                    <div class="col-sm-12 form-horizontal">
-                        <div class="form-group">
-                            <div class="col-sm-4"><diet-daily total of="calories"></diet-daily></div>
-                            <div class="col-sm-4"><diet-daily total of="fibre"></diet-daily></div>
-                            <div class="col-sm-4"><diet-daily total of="wwpoints" text="Total WW Points"></diet-daily></div>
-                            <div class="col-sm-4"><diet-daily total of="protein"></diet-daily></div>
-                            <div class="col-sm-4"><diet-daily total of="fruitnveg" text="Total Ptns Fruit/Veg"></diet-daily></div>
-                            <div class="col-sm-4"><diet-daily percentage of="protein"></diet-daily></div>
-                            <div class="col-sm-4"><diet-daily total of="carbohydrate"></diet-daily></div>
-                            <!--div class="col-sm-4"><diet-daily total of="sugar" text="of which Sugars"></diet-daily></div-->
-                            <div class="col-sm-4"><diet-daily total of="sodium"></diet-daily></div>
-                            <div class="col-sm-4"><diet-daily percentage of="carbohydrate"></diet-daily></div>
-                            <div class="col-sm-4"><diet-daily total of="fat"></diet-daily></div>
-                            <div class="col-sm-4"><diet-daily total of="potassium"></diet-daily></div>
-                            <div class="col-sm-4"><diet-daily percentage of="fat"></diet-daily></div>
+                    <div class="form-group">
+                        <div class="col-sm-4 form-horizontal">
+                            <diet-daily total of="calories"></diet-daily>
+                            <diet-daily total of="protein"></diet-daily>
+                            <diet-daily total of="carbohydrate"></diet-daily>
+                            <span style="display: none;"><diet-daily total of="sugar" text="of which Sugars"></diet-daily></span>
+                            <diet-daily total of="fat"></diet-daily>
+                        </div>
+
+                        <div class="col-sm-4 form-horizontal">
+                            <diet-daily total of="fibre"></diet-daily>
+                            <diet-daily total of="fruitnveg" text="Total Ptns Fruit/Veg"></diet-daily>
+                            <diet-daily total of="sodium"></diet-daily>
+                            <diet-daily total of="potassium"></diet-daily>
+                        </div>
+
+                        <div class="col-sm-4 form-horizontal">
+                            <diet-daily total of="wwpoints" text="Total WW Points"></diet-daily>
+                            <diet-daily percentage of="protein"></diet-daily>
+                            <diet-daily percentage of="carbohydrate"></diet-daily>
+                            <diet-daily percentage of="fat"></diet-daily>
                         </div>
                     </div>
                 </div>
                 <div class="row bg-default visible-xs-block" id="dateSummaryXS">
-                    <div class="form-horizontal">
+                    <div class="col-xs-12 form-horizontal">
                         <div class="form-group">
-                            <div class="col-xs-16"><diet-daily total of="calories"></diet-daily></div>
-                            <div class="col-xs-16"><diet-daily total of="protein"></diet-daily></div>
+                            <diet-daily total of="calories"></diet-daily>
+                            <diet-daily total of="protein"></diet-daily>
                             <div collapse="xsTotalsCollapsed">
-                                <div class="col-xs-16"><diet-daily total of="carbohydrate"></diet-daily></div>
-                                <div class="col-xs-16"><diet-daily total of="fat"></diet-daily></div>
-                                <div class="col-xs-16"><diet-daily total of="fibre"></diet-daily></div>
-                                <div class="col-xs-16"><diet-daily total of="wwpoints" text="Total WW Points"></diet-daily></div>
-                                <div class="col-xs-16"><diet-daily total of="fruitnveg" text="Total Ptns Fruit/Veg"></diet-daily></div>
-                                <div class="col-xs-16"><diet-daily total of="sodium"></diet-daily></div><!--diet-daily total of="sugar" text="of which Sugars"></diet-daily-->
-                                <div class="col-xs-16"><diet-daily total of="potassium"></diet-daily></div>
+                                <diet-daily total of="carbohydrate"></diet-daily>
+                                <span style="display: none;"><diet-daily total of="sugar" text="of which Sugars"></diet-daily></span>
+                                <diet-daily total of="fat"></diet-daily>
+                                <diet-daily total of="fibre"></diet-daily>
+                                <diet-daily total of="wwpoints" text="Total WW Points"></diet-daily>
+                                <diet-daily total of="fruitnveg" text="Total Ptns Fruit/Veg"></diet-daily>
+                                <diet-daily total of="sodium"></diet-daily>
+                                <diet-daily total of="potassium"></diet-daily>
                             </div>
                         </div>
                         <div class="form-group">
                             <div collapse="xsTotalsCollapsed">
-                                <div class="col-xs-16"><diet-daily percentage of="protein"></diet-daily></div>
-                                <div class="col-xs-16"><diet-daily percentage of="carbohydrate"></diet-daily></div>
-                                <div class="col-xs-16"><diet-daily percentage of="fat"></diet-daily></div>
+                                <diet-daily percentage of="protein"></diet-daily>
+                                <diet-daily percentage of="carbohydrate"></diet-daily>
+                                <diet-daily percentage of="fat"></diet-daily>
                             </div>
                         </div>
                     </div>
@@ -412,16 +422,16 @@
                             </select>
                         </div>
                     </div>
-                    <div class="col-xs-4 col-sm-2 col-md-1"><input type="text" class="form-control"                              id="quantity" value="{{foodItem.quantity | number: 2}}" data-ng-model="foodItem.getSetQuantity" data-ng-model-options="{getterSetter: true}" /></div>
-                    <div class="col-xs-4 col-sm-2 col-md-1"><input type="text" class="form-control"                     readonly id="calories" value="{{foodItem.calories() | number: 2}}" data-ng-bind="foodItem.calories()" /></div>
-                    <div class="col-xs-4 col-sm-2 col-md-1"         ><input type="text" class="form-control"                     readonly id="protein" value="{{foodItem.protein() | number: 2}}" data-ng-bind="foodItem.protein()" /></div>
+                    <div class="col-xs-4 col-sm-2 col-md-1"><input type="text" class="form-control"                              id="quantity"     value="{{foodItem.quantity | number: 2}}" data-ng-model="foodItem.getSetQuantity" data-ng-model-options="{getterSetter: true}" /></div>
+                    <div class="col-xs-4 col-sm-2 col-md-1"><input type="text" class="form-control"                     readonly id="calories"     value="{{foodItem.calories() | number: 2}}" data-ng-bind="foodItem.calories()" /></div>
+                    <div class="col-xs-4 col-sm-2 col-md-1"><input type="text" class="form-control"                     readonly id="protein"      value="{{foodItem.protein() | number: 2}}" data-ng-bind="foodItem.protein()" /></div>
                     <div class="col-sm-1"                  ><input type="text" class="form-control hidden-xs"           readonly id="carbohydrate" value="{{foodItem.carbohydrate() | number: 2}}" data-ng-bind="foodItem.carbohydrate()" /></div>
-                    <div class="col-sm-1"                  ><input type="text" class="form-control hidden-xs"           readonly id="fat" value="{{foodItem.fat() | number: 2}}" data-ng-bind="foodItem.fat()" /></div>
-                    <div class="col-md-1"                  ><input type="text" class="form-control hidden-xs hidden-sm" readonly id="fibre" value="{{foodItem.fibre() | number: 2}}" data-ng-bind="foodItem.fibre()" /></div>
-                    <div class="col-md-1"                  ><input type="text" class="form-control hidden-xs hidden-sm" readonly id="fruitnveg" value="{{foodItem.fruitnveg() | number: 2}}" data-ng-bind="foodItem.fruitnveg()" /></div>
-                    <div class="col-md-1"                  ><input type="text" class="form-control hidden-xs hidden-sm" readonly id="sodium" value="{{foodItem.sodium() | number: 2}}" data-ng-bind="foodItem.sodium()" /></div>
-                    <div class="col-md-1"                  ><input type="text" class="form-control hidden-xs hidden-sm" readonly id="potassium" value="{{foodItem.potassium() | number: 2}}" data-ng-bind="foodItem.potassium()" /></div>
-                    <div class="col-md-1"                  ><input type="text" class="form-control hidden-xs hidden-sm" readonly id="wwpoints" value="{{foodItem.wwpoints() | number: 2}}" data-ng-bind="foodItem.wwpoints()" /></div>
+                    <div class="col-sm-1"                  ><input type="text" class="form-control hidden-xs"           readonly id="fat"          value="{{foodItem.fat() | number: 2}}" data-ng-bind="foodItem.fat()" /></div>
+                    <div class="col-md-1"                  ><input type="text" class="form-control hidden-xs hidden-sm" readonly id="fibre"        value="{{foodItem.fibre() | number: 2}}" data-ng-bind="foodItem.fibre()" /></div>
+                    <div class="col-md-1"                  ><input type="text" class="form-control hidden-xs hidden-sm" readonly id="fruitnveg"    value="{{foodItem.fruitnveg() | number: 2}}" data-ng-bind="foodItem.fruitnveg()" /></div>
+                    <div class="col-md-1"                  ><input type="text" class="form-control hidden-xs hidden-sm" readonly id="sodium"       value="{{foodItem.sodium() | number: 2}}" data-ng-bind="foodItem.sodium()" /></div>
+                    <div class="col-md-1"                  ><input type="text" class="form-control hidden-xs hidden-sm" readonly id="potassium"    value="{{foodItem.potassium() | number: 2}}" data-ng-bind="foodItem.potassium()" /></div>
+                    <div class="col-md-1"                  ><input type="text" class="form-control hidden-xs hidden-sm" readonly id="wwpoints"     value="{{foodItem.wwpoints() | number: 2}}" data-ng-bind="foodItem.wwpoints()" /></div>
 
                 </div>
 
