@@ -611,7 +611,7 @@ class ArrestDB
 				$root = preg_replace('~/++~', '/', substr($_SERVER['PHP_SELF'], strlen($_SERVER['SCRIPT_NAME'])) . '/');
 			}
 
-			if (preg_match('~^' . str_replace(['#any', '#num'], ['[^/]++', '[0-9]++'], $route) . '~i', $root, $parts) > 0)
+			if (preg_match('~^' . str_replace(['#any', '#num'], ['[^/]++', '-?[0-9]++'], $route) . '~i', $root, $parts) > 0)
 			{
 				return (empty($callback) === true) ? true : exit(call_user_func_array($callback, array_slice($parts, 1)));
 			}
