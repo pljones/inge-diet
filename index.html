@@ -68,7 +68,7 @@
                 $scope.selectedDate = undefined;
                 $scope.sdComparable = undefined;
                 $scope.getSetSelectedDate = function(_newValue) {
-                    if (_newValue && selectedDate != _newValue) {
+                    if (_newValue && $scope.selectedDate != _newValue) {
                         $scope.selectedDate = _newValue;
                         $scope.sdComparable = $filter('date')($scope.selectedDate, 'yyyy-MM-dd', 0);
                         getFoodItems();
