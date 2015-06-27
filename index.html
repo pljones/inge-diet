@@ -287,7 +287,6 @@
                     scope: true,
                     link: function(scope, element, attrs) {
                         var isTotal = (typeof attrs.total !== 'undefined') || (typeof attrs.percentage === 'undefined');
-                        scope.labelCols = isTotal ? '4' : '5';
                         scope.label = attrs.text || (isTotal ? 'Total ' : 'Percentage ') + scope.totals[attrs.of].label;
                         scope.what = scope.totals[attrs.of];
                         scope.which = isTotal ? 'value' : 'percentage';
