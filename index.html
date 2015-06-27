@@ -61,7 +61,7 @@
                 'info.drealm.diet.services'
             ]);
             dietControllers
-            .controller('Diet', ['$scope', '$filter', 'Food', 'DietEntry', function($scope, $filter, Food, DietEntry) {
+            .controller('Diet', ['$scope', '$filter', '$modal', 'Food', 'DietEntry', function($scope, $filter, $modal, Food, DietEntry) {
 
                 $scope.isOpen = false;
                 $scope.selectedDate = undefined;
@@ -263,6 +263,36 @@
                     );
                 };
 
+                $scope.foodEditor = function () {
+
+                    var modalInstance = $modal.open({
+                        animation: true,
+                        backdrop: 'static',
+                        size: 'lg',
+                        templateUrl: 'foodEditor.html',
+                        controller: 'DietFoodEditor',
+                        resolve: {
+                            Columns: function() {
+                                var columns = [{'key': 'name', 'label': 'Name'}];
+                                ['calories', 'protein', 'carbohydrate', 'fat', 'fibre', 'fruitnveg', 'sodium', 'potassium', 'wwpoints'].forEach(function(name) {
+                                    columns.push({
+                                        'key': name,
+                                        'label': $scope.totals[name].label
+                                    });
+                                });
+                                return columns;
+                            }
+                        }
+                    });
+
+                    modalInstance.result.then(function (result) {
+                        console.log('foodEditor OK');
+                    },
+                    function() {
+                        console.log('foodEditor dismissed');
+                    });
+                };
+
                 // ------------------------------
 
                 $scope.foods = Food.query({by: 'name'},
@@ -277,6 +307,25 @@
 
 
             }])
+            .controller('DietFoodEditor', ['$scope', '$filter', '$modalInstance', 'Food', 'Columns', function($scope, $filter, $modalInstance, Food, Columns) {
+
+                $scope.selectedFood = undefined;
+                $scope.columns = Columns;
+
+                $scope.foods = Food.query({by: 'name'},
+                    function() { // success
+                    },
+                    function() { //error
+                        console.log('Food.query error');
+                        angular.forEach(arguments, function(a) { console.log(arguments); });
+                    }
+                );
+
+                $scope.ok = function () {
+                    $modalInstance.close({});
+                };
+
+            }]);
             ;
 
             var dietDirectives = angular.module('info.drealm.diet.directives', []);
@@ -292,6 +341,17 @@
                         scope.which = isTotal ? 'value' : 'percentage';
                     },
                     templateUrl: 'dietDaily.html'
+                };
+            }])
+            .directive('dietEditDetail', ['$parse', function($parse) {
+                return {
+                    restrict: 'E',
+                    scope: true,
+                    link: function(scope, element, attrs) {
+                        scope.label = attrs.text || scope.totals[attrs.of].label;
+                        scope.what = scope.totals[attrs.of];
+                    },
+                    templateUrl: 'dietEditDetail.html'
                 };
             }])
             ;
@@ -448,6 +508,46 @@
                 <div class="form-inline">
                     <label for="{{which}}_{{what}}" class="col-xs-8 col-sm-8 control-label">{{label}}</label>
                     <input type="text" class="col-xs-1 col-sm-1 form-control" style="width: auto;" size="7" readonly value="{{what[which] | number: 2}}" name="{{which}}_{{what}}" data-ng-bind="what[which]" />
+                </div>
+            </script>
+
+            <script type="text/ng-template" id="dietEditDetail.html">
+                <label for="edit_{{which}}" class="control-label">{{label}}</label>
+                <input type="number" class="form-control" style="width: auto;" size="7" value="{{what[which]}}" name="edit_{{which}}" data-ng-bind="what[which].value" />
+            </script>
+
+            <script type="text/ng-template" id="foodEditor.html">
+                <div class="container-fluid text-primary bg-primary">
+                    &nbsp;
+                    <form class="well form-horizontal">
+                        <div class="row form-group">
+                            <span data-ng-repeat="which in columns">
+                                <div class="form-inline {{$index ? 'col-lg-3' : 'col-lg-9'}}">
+                                    <label for="edit_{{which.key}}" class="col-sm-4 control-label">{{which.label}}</label>
+                                    <input type="text" name="edit_{{which.key}}" class="{{$index ? 'col-sm-2' : 'col-sm-6'}} form-control" size="{{$index ? '7' : '40'}}" value="{{$parent.selectedFood[which.key]}}" data-ng-model="$parent.selectedFood[which.key]" />
+                                </div>
+                            </span>
+                            <div class="col-lg-12"><input type="button" class="btn btn-default pull-right" id="ok" value="Done" data-ng-click="ok()" /></div>
+                        </div>
+                    </form>
+                    <div class="well" style=" max-height: 95% !important; overflow: auto;">
+                        <div class="row">
+                            <div class="col-lg-1">Select</div>
+                            <span data-ng-repeat="which in columns"><div class="{{$index ? 'col-lg-1' : 'col-lg-2'}}">{{which.label}}</div></span>
+                        </div>
+                        <div class="row" data-ng-repeat="food in foods">
+                            <div class="col-lg-1">
+                                <input type="radio" data-ng-model="$parent.selectedFood" data-ng-value="food" />
+                            </div>
+                            <span data-ng-repeat="which in columns"><div class="{{$index ? 'col-lg-1' : 'col-lg-2'}}">{{food[which.key]}}</div></span>
+                        </div>
+                    </div>
+                </div>
+            </script>
+
+            <script type="text/ng-template" id="template/modal/window.html">
+                <div modal-render="{{$isRendered}}" tabindex="-1" role="dialog" class="modal" modal-animation-class="fade" ng-class="{in: animate}" ng-style="{'z-index': 1050 + index*10, display: 'block'}" ng-click="close($event)">
+                    <div class="modal-dialog" style="width: 95% !important; max-height: 95% !important; overflow: auto;" ng-class="size ? 'modal-' + size : ''"><div class="modal-content" modal-transclude></div></div>
                 </div>
             </script>
 
