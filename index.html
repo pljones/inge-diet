@@ -294,17 +294,6 @@
                     templateUrl: 'dietDaily.html'
                 };
             }])
-            .directive('dietDetail', ['$parse', function($parse) {
-                var i = 0;
-                return {
-                    restrict: 'E',
-                    scope: true,
-                    link: function(scope, element, attrs) {
-                        scope.value = $parse('foodItem.' + attrs.of + '()');
-                    },
-                    template: '<div><input type="text" class="form-control" value="{{value() | number: 2}}" data-ng-bind="value()" readonly /></div>'
-                };
-            }])
             ;
 
             var dietApp = angular.module('info.drealm.diet.app', [
