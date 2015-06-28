@@ -32,7 +32,17 @@
             var dietServices = angular.module('info.drealm.diet.services', ['ngResource', 'ngRoute']);
             dietServices
             .factory('Food', ['$resource', function($resource) {
-                return $resource('rest/foods/');
+                return $resource(
+                    'rest/foods/:id', {'id': '@id'},
+                    {
+                        update: {
+                            method: 'PUT',
+                            params: {
+                                id: '@id'
+                            }
+                        }
+                    }
+                );
             }])
             .factory('DietEntry', ['$resource', function($resource) {
                 return $resource(
