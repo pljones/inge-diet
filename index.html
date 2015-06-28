@@ -323,23 +323,151 @@
                 fetchFoods($scope.setToday);
 
             }])
-            .controller('DietFoodEditor', ['$scope', '$filter', '$modalInstance', 'Food', 'Columns', function($scope, $filter, $modalInstance, Food, Columns) {
+            .controller('DietFoodEditor', ['$scope', '$modalInstance', 'Food', 'DietEntry', 'Columns', function($scope, $modalInstance, Food, DietEntry, Columns) {
 
                 $scope.selectedFood = undefined;
+
                 $scope.columns = Columns;
 
                 $scope.foods = Food.query({by: 'name'},
                     function() { // success
                     },
                     function() { //error
-                        console.log('Food.query error');
-                        angular.forEach(arguments, function(a) { console.log(arguments); });
+                        console.error('Food.query error');
+                        console.error(arguments);
                     }
                 );
 
-                $scope.ok = function () {
+                $scope.done = function () {
                     $modalInstance.close({});
                 };
+
+                $scope.add = function() {
+                    var newFood = {
+                        //id: -1,
+                        name: '',
+                        calories: '-1',
+                        protein: '-1',
+                        carbohydrate: '-1',
+                        fat: '-1',
+                        fibre: '-1'
+                    };
+                    Food.save(newFood,
+                        function(food) { // success
+                            console.log(arguments);
+                            $scope.foods.unshift(food);
+                            $scope.selectedFood = food;
+                            //alert('Added new food.');
+                        },
+                        function() { // failure
+                            console.error('Add failure');
+                            console.error(arguments);
+                            $scope.selectedFood = undefined;
+                            alert('Failed to add new food.');
+                        }
+                    );
+                };
+
+                $scope.delete = function() {
+                    if (!$scope.selectedFood || $scope.foods.indexOf($scope.selectedFood) < 0) {
+                        return;
+                    }
+                    var theFood = {
+                        id: $scope.selectedFood.id
+                    };
+                    Food.remove(theFood,
+                        function() { // success
+                            var i = $scope.foods.indexOf($scope.selectedFood);
+                            $scope.selectedFood = undefined;
+                            $scope.foods.splice(i, 1);
+                            //alert('Deleted food.');
+                        },
+                        function() { // failure
+                            console.error('Delete failure');
+                            console.error(arguments);
+                            $scope.selectedFood = undefined;
+                            alert('Failed to delete food.');
+                        }
+                    );
+                };
+
+                var _queryByFoodId = undefined;
+                var _deleteClass = 'disabled';
+                var dietEntriesForFood = undefined;
+
+                $scope.deleteBtnClass = function() {
+                    if (!$scope.selectedFood || $scope.foods.indexOf($scope.selectedFood) < 0) {
+                        _queryByFoodId = undefined;
+                        _deleteClass = 'disabled';
+                        dietEntriesForFood = undefined;
+                    } else if (_queryByFoodId != $scope.selectedFood.id) {
+                        _queryByFoodId = $scope.selectedFood.id;
+                        DietEntry.queryByFoodId({food_id: _queryByFoodId},
+                            function(response) { // success
+                                if (response.length) {
+                                    _deleteClass = 'btn-danger';
+                                    var dietEntry = response[response.length - 1];
+                                    dietEntriesForFood = {entries: response.length, entryDate: dietEntry.entry_date};
+                                } else {
+                                    _deleteClass = 'btn-warning';
+                                    dietEntriesForFood = {entries: 0};
+                                }
+                            },
+                            function() { // failure
+                                console.error('queryByFoodId failure');
+                                console.error(arguments);
+                                _deleteClass = 'btn-danger';
+                                dietEntriesForFood = {error: 'Error fetching diet entries.  Number of entries unknown.'};
+                            }
+                        );
+                    }
+                    return _deleteClass;
+                };
+
+                $scope.deleteBtnTitle = function() {
+                    if (!dietEntriesForFood) return '';
+                    if (dietEntriesForFood.error) return dietEntriesForFood.error;
+                    return '<div>' + (dietEntriesForFood.entries || 'No') + ' entries found.</div>' + (dietEntriesForFood.entries ? '<div>Most recent ' + dietEntriesForFood.entryDate + '.</div>' : '');
+                };
+
+                var getSet = function(key, _newValue) {
+                    if (!$scope.selectedFood || $scope.foods.indexOf($scope.selectedFood) < 0 || arguments.length == 0) return undefined;
+
+                    if (arguments.length < 2) return $scope.selectedFood[key];
+
+                    if (('' + $scope.selectedFood[key]) != ('' + _newValue)) {
+                        var oldFood = $scope.selectedFood;
+                        var oldValue = oldFood[key];
+
+                        $scope.selectedFood[key] = _newValue;
+                        var theFood = {
+                            id: $scope.selectedFood.id
+                        };
+                        theFood[key] = _newValue;
+                        Food.update(theFood,
+                            function() { // success
+                            },
+                            function() { // failure
+                                console.error('Update failure');
+                                console.error(arguments);
+                                $scope.selectedFood = undefined;
+                                oldFood[key] = oldValue;
+                                alert('Failed to update food.');
+                            }
+                        );
+                    }
+                    return $scope.selectedFood[key];
+                };
+                $scope.gs_name = function() { return arguments.length ? getSet('name', arguments[0]) : getSet('name'); }
+                $scope.gs_calories = function() { return arguments.length ? getSet('calories', arguments[0]) : getSet('calories'); }
+                $scope.gs_protein = function() { return arguments.length ? getSet('protein', arguments[0]) : getSet('protein'); }
+                $scope.gs_carbohydrate = function() { return arguments.length ? getSet('carbohydrate', arguments[0]) : getSet('carbohydrate'); }
+                $scope.gs_fat = function() { return arguments.length ? getSet('fat', arguments[0]) : getSet('fat'); }
+                $scope.gs_fibre = function() { return arguments.length ? getSet('fibre', arguments[0]) : getSet('fibre'); }
+                $scope.gs_fruitnveg = function() { return arguments.length ? getSet('fruitnveg', arguments[0]) : getSet('fruitnveg'); }
+                $scope.gs_sodium = function() { return arguments.length ? getSet('sodium', arguments[0]) : getSet('sodium'); }
+                $scope.gs_potassium = function() { return arguments.length ? getSet('potassium', arguments[0]) : getSet('potassium'); }
+                $scope.gs_wwpoints = function() { return arguments.length ? getSet('wwpoints', arguments[0]) : getSet('wwpoints'); }
 
             }]);
             ;
@@ -414,7 +542,7 @@
                     </div></div>
                     <div class="visible-lg-block col-sm-4">&nbsp;</div>
                     <div><div class="visible-lg-block col-sm-4">
-                        <button class="btn btn-warning pull-right" data-ng-click="foodEditor()">Food Editor</button>
+                        <button class="btn btn-warning pull-right" data-ng-click="foodEditor()"><span class="glyphicon glyphicon-modal-window"></span> Food Editor</button>
                     </div></div>
                 </div>
 
@@ -490,7 +618,7 @@
                 <div class="row" data-ng-repeat="foodItem in foodItems">
                     <div class="col-xs-12 col-sm-4 col-md-2">
                         <div class="input-group">
-                            <span class="input-group-btn"><button class="btn btn-danger" data-ng-click="deleteFoodItem(foodItem)">X</button></span>
+                            <span class="input-group-btn"><button class="btn btn-danger" data-ng-click="deleteFoodItem(foodItem)"><span class="glyphicon glyphicon-remove"></span></button></span>
                             <select
                                 class="form-control"
                                 data-ng-model="foodItem.getSetFoodId" data-ng-model-options="{getterSetter: true}"
@@ -506,15 +634,15 @@
                     <div class="col-sm-1"                  ><input type="text" class="form-control hidden-xs"           readonly id="fat"          value="{{foodItem.fat() | number: 2}}" data-ng-bind="foodItem.fat()" /></div>
                     <div class="col-md-1"                  ><input type="text" class="form-control hidden-xs hidden-sm" readonly id="fibre"        value="{{foodItem.fibre() | number: 2}}" data-ng-bind="foodItem.fibre()" /></div>
                     <div class="col-md-1"                  ><input type="text" class="form-control hidden-xs hidden-sm" readonly id="fruitnveg"    value="{{foodItem.fruitnveg() | number: 2}}" data-ng-bind="foodItem.fruitnveg()" /></div>
-                    <div class="col-md-1"                  ><input type="text" class="form-control hidden-xs hidden-sm" readonly id="sodium"       value="{{foodItem.sodium() | number: 2}}" data-ng-bind="foodItem.sodium()" /></div>
-                    <div class="col-md-1"                  ><input type="text" class="form-control hidden-xs hidden-sm" readonly id="potassium"    value="{{foodItem.potassium() | number: 2}}" data-ng-bind="foodItem.potassium()" /></div>
+                    <div class="col-md-1"                  ><input type="text" class="form-control hidden-xs hidden-sm" readonly id="sodium"       value="{{foodItem.sodium() | number: 4}}" data-ng-bind="foodItem.sodium()" /></div>
+                    <div class="col-md-1"                  ><input type="text" class="form-control hidden-xs hidden-sm" readonly id="potassium"    value="{{foodItem.potassium() | number: 4}}" data-ng-bind="foodItem.potassium()" /></div>
                     <div class="col-md-1"                  ><input type="text" class="form-control hidden-xs hidden-sm" readonly id="wwpoints"     value="{{foodItem.wwpoints() | number: 2}}" data-ng-bind="foodItem.wwpoints()" /></div>
 
                 </div>
 
                 <div class="row">
                     <div class="col-xs-3 col-sm-1 form-group form-inline">
-                        <button class="btn btn-primary form-control" data-ng-click="addFoodItem()">+</button>
+                        <button class="btn btn-primary form-control" data-ng-click="addFoodItem()"><span class="glyphicon glyphicon-plus"></span></button>
                         <div>&nbsp;</div>
                     </div>
                 </div>
@@ -536,17 +664,30 @@
             <script type="text/ng-template" id="foodEditor.html">
                 <div class="container-fluid text-primary bg-primary">
                     &nbsp;
-                    <form class="well form-horizontal">
+                    <div class="well form-horizontal">
                         <div class="row form-group">
-                            <span data-ng-repeat="which in columns">
-                                <div class="form-inline {{$index ? 'col-lg-3' : 'col-lg-9'}}">
-                                    <label for="edit_{{which.key}}" class="col-sm-4 control-label">{{which.label}}</label>
-                                    <input type="text" name="edit_{{which.key}}" class="{{$index ? 'col-sm-2' : 'col-sm-6'}} form-control" size="{{$index ? '7' : '40'}}" value="{{$parent.selectedFood[which.key]}}" data-ng-model="$parent.selectedFood[which.key]" />
-                                </div>
-                            </span>
-                            <div class="col-lg-12"><input type="button" class="btn btn-default pull-right" id="ok" value="Done" data-ng-click="ok()" /></div>
+                            <div class="col-lg-12">
+                                <button class="btn" data-ng-class="deleteBtnClass()" id="delete" data-ng-click="delete()"
+                                tooltip-enable="true" tooltip-trigger="mouseenter" tooltip-placement="bottom" tooltip-html="deleteBtnTitle()">Delete Food</button>
+                                <button class="btn btn-success" id="add" data-ng-click="add()">Add Food</button>
+                                <span class="pull-right">
+                                    <button class="btn btn-default" id="save" data-ng-click="done()">Done</button>
+                                </span>
+                            </div>
                         </div>
-                    </form>
+                        <div class="row form-group">
+                                <div class="form-inline">
+                                    <label for="edit_name" class="col-lg-3 control-label">{{columns[0].label}}</label>
+                                    <input type="text" name="edit_name" class=" form-control" size="100" value="{{gs_name()}}" data-ng-model="gs_name" data-ng-model-options="{debounce: 300, getterSetter: true}" />
+                                </div>
+                        </div>
+                        <div class="row form-group">
+                                <div data-ng-repeat="which in columns.slice(1)" class="form-inline">
+                                    <label for="edit_{{which.key}}" class="control-label col-lg-3">{{which.label}}</label>
+                                    <input type="text" name="edit_{{which.key}}" class="form-control col-lg-1" size="7" value="{{$parent['gs_' + which.key]()}}" data-ng-model="$parent['gs_' + which.key]" data-ng-model-options="{debounce: 300, getterSetter: true}" />
+                                </div>
+                        </div>
+                    </div>
                     <div class="well" style=" max-height: 95% !important; overflow: auto;">
                         <div class="row">
                             <div class="col-lg-1">Select</div>
@@ -564,7 +705,7 @@
 
             <script type="text/ng-template" id="template/modal/window.html">
                 <div modal-render="{{$isRendered}}" tabindex="-1" role="dialog" class="modal" modal-animation-class="fade" ng-class="{in: animate}" ng-style="{'z-index': 1050 + index*10, display: 'block'}" ng-click="close($event)">
-                    <div class="modal-dialog" style="width: 95% !important; max-height: 95% !important; overflow: auto;" ng-class="size ? 'modal-' + size : ''"><div class="modal-content" modal-transclude></div></div>
+                    <div class="modal-dialog" style="width: 95% !important; max-height: 92% !important; overflow: auto;" ng-class="size ? 'modal-' + size : ''"><div class="modal-content" modal-transclude></div></div>
                 </div>
             </script>
 
