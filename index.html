@@ -112,6 +112,20 @@
                 };
 
                 $scope.foods = [];
+                var fetchFoods = function(success, failure) {
+                    Food.query({by: 'name'},
+                        function(value) { //success
+                            $scope.foods = value;
+                            if (success) success(arguments);
+                        },
+                        function() { //error
+                            console.error('Food.query error');
+                            console.error(arguments);
+                            if (failure) failure(arguments);
+                        }
+                    );
+                };
+
                 $scope.dietEntries = [];
 
                 var getFoodItems = function() {
@@ -302,26 +316,12 @@
                         }
                     });
 
-                    modalInstance.result.then(function (result) {
-                        console.log('foodEditor OK');
-                    },
-                    function() {
-                        console.log('foodEditor dismissed');
-                    });
+                    modalInstance.result.then(function() { fetchFoods(); }, function() { fetchFoods(); });
                 };
 
                 // ------------------------------
 
-                $scope.foods = Food.query({by: 'name'},
-                    function() { // success
-                        $scope.setToday();
-                    },
-                    function() { //error
-                        console.log('Food.query error');
-                        console.log(arguments);
-                    }
-                );
-
+                fetchFoods($scope.setToday);
 
             }])
             .controller('DietFoodEditor', ['$scope', '$filter', '$modalInstance', 'Food', 'Columns', function($scope, $filter, $modalInstance, Food, Columns) {
