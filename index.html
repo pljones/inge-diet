@@ -46,7 +46,7 @@
             }])
             .factory('DietEntry', ['$resource', function($resource) {
                 return $resource(
-                    'rest/diet_entries/:id', {},
+                    'rest/diet_entries/:id', {'id': '@id'},
                     {
                         queryByDate: {
                             method: 'GET',
