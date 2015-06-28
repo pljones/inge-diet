@@ -355,6 +355,7 @@
                         scope.label = attrs.text || (isTotal ? 'Total ' : 'Percentage ') + scope.totals[attrs.of].label;
                         scope.what = scope.totals[attrs.of];
                         scope.which = isTotal ? 'value' : 'percentage';
+                        scope.dp = attrs.dp || 2;
                     },
                     templateUrl: 'dietDaily.html'
                 };
@@ -430,8 +431,8 @@
                         <div class="col-sm-4 form-horizontal">
                             <diet-daily total of="fibre"></diet-daily>
                             <diet-daily total of="fruitnveg" text="Total Ptns Fruit/Veg"></diet-daily>
-                            <diet-daily total of="sodium"></diet-daily>
-                            <diet-daily total of="potassium"></diet-daily>
+                            <diet-daily total of="sodium" dp=4></diet-daily>
+                            <diet-daily total of="potassium" dp=4></diet-daily>
                         </div>
 
                         <div class="col-sm-4 form-horizontal">
@@ -454,8 +455,8 @@
                                 <diet-daily total of="fibre"></diet-daily>
                                 <diet-daily total of="wwpoints" text="Total WW Points"></diet-daily>
                                 <diet-daily total of="fruitnveg" text="Total Ptns Fruit/Veg"></diet-daily>
-                                <diet-daily total of="sodium"></diet-daily>
-                                <diet-daily total of="potassium"></diet-daily>
+                                <diet-daily total of="sodium" dp=4></diet-daily>
+                                <diet-daily total of="potassium" dp=4></diet-daily>
                             </div>
                         </div>
                         <div class="form-group">
@@ -523,7 +524,7 @@
             <script type="text/ng-template" id="dietDaily.html">
                 <div class="form-inline">
                     <label for="{{which}}_{{what}}" class="col-xs-8 col-sm-8 control-label">{{label}}</label>
-                    <input type="text" class="col-xs-1 col-sm-1 form-control" style="width: auto;" size="7" readonly value="{{what[which] | number: 2}}" name="{{which}}_{{what}}" data-ng-bind="what[which]" />
+                    <input type="text" class="col-xs-1 col-sm-1 form-control" style="width: auto;" size="7" readonly value="{{what[which] | number: dp}}" name="{{which}}_{{what}}" data-ng-bind="what[which]" />
                 </div>
             </script>
 
