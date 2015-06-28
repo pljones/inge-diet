@@ -56,6 +56,14 @@
                             url: 'rest/diet_entries/entry_date/:entry_date',
                             isArray: true
                         },
+                        queryByFoodId: {
+                            method: 'GET',
+                            params: {
+                                food_id: '@food_id'
+                            },
+                            url: 'rest/diet_entries/food_id/:food_id',
+                            isArray: true
+                        },
                         update: {
                             method: 'PUT',
                             params: {
