@@ -268,8 +268,7 @@
                     };
                     DietEntry.save(dietEntry,
                         function(response) { // success
-                            dietEntry.id = response.id;
-                            var foodItem = new FoodItem(dietEntry);
+                            var foodItem = new FoodItem(response);
                             $scope.foodItems.push(foodItem);
                             calculateTotals();
                         },
