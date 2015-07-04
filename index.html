@@ -117,7 +117,7 @@
                         function(value) { //success
                             $scope.foods = value;
                             if (success) success(arguments);
-                        },
+                        }, 
                         function() { //error
                             console.error('Food.query error');
                             console.error(arguments);
@@ -294,13 +294,13 @@
                     );
                 };
 
-                $scope.foodEditor = function () {
+                $scope.foodListEditor = function () {
                     var modalInstance = $modal.open({
                         animation: true,
                         backdrop: 'static',
                         size: 'lg',
-                        templateUrl: 'foodEditor.html',
-                        controller: 'DietFoodEditor',
+                        templateUrl: 'foodListEditor.html',
+                        controller: 'DietFoodListEditor',
                         resolve: {
                             Columns: function() {
                                 var columns = [{'key': 'name', 'label': 'Name'}];
@@ -323,9 +323,7 @@
                 fetchFoods($scope.setToday);
 
             }])
-            .controller('DietFoodEditor', ['$scope', '$modalInstance', 'Food', 'DietEntry', 'Columns', function($scope, $modalInstance, Food, DietEntry, Columns) {
-
-                $scope.selectedFood = undefined;
+            .controller('DietFoodListEditor', ['$scope', '$modalInstance', '$modal', 'Food', 'DietEntry', 'Columns', function($scope, $modalInstance,  $modal, Food, DietEntry, Columns) {
 
                 $scope.columns = Columns;
 
@@ -356,83 +354,102 @@
                         function(food) { // success
                             console.log(arguments);
                             $scope.foods.unshift(food);
-                            $scope.selectedFood = food;
-                            //alert('Added new food.');
+                            $scope.edit(food);
                         },
                         function() { // failure
                             console.error('Add failure');
                             console.error(arguments);
-                            $scope.selectedFood = undefined;
                             alert('Failed to add new food.');
                         }
                     );
                 };
 
-                $scope.delete = function() {
-                    if (!$scope.selectedFood || $scope.foods.indexOf($scope.selectedFood) < 0) {
+                $scope.delete = function(food) {
+                    if ($scope.foods.indexOf(food) < 0) {
                         return;
                     }
-                    var theFood = {
-                        id: $scope.selectedFood.id
-                    };
-                    Food.remove(theFood,
-                        function() { // success
-                            var i = $scope.foods.indexOf($scope.selectedFood);
-                            $scope.selectedFood = undefined;
-                            $scope.foods.splice(i, 1);
-                            //alert('Deleted food.');
+                    _queryByFoodId = food.id;
+                    DietEntry.queryByFoodId({food_id: _queryByFoodId},
+                        function(response) { // success
+                            if (response.length) {
+                                _deleteClass = 'btn-danger';
+                                var dietEntry = response[response.length - 1];
+                                dietEntriesForFood = {entries: response.length, entryDate: dietEntry.entry_date};
+                            } else {
+                                _deleteClass = 'btn-warning';
+                                dietEntriesForFood = {entries: 0};
+                            }
+                            var confirmed = confirm('"' + food.name + '" is used in ' + dietEntriesForFood.entries + ' diet entries.' + "\n" +
+                                (dietEntriesForFood.entries ? 'Last entry date: ' + dietEntriesForFood.entryDate + "\n" : '') +
+                                'Are you sure you want to delete this food and associated diet entries?');
+                            if (confirmed) {
+                                var theFood = {
+                                    id: food.id
+                                };
+                                Food.remove(theFood,
+                                    function() { // success
+                                        var i = $scope.foods.indexOf(food);
+                                        $scope.foods.splice(i, 1);
+                                        //alert('Deleted food.');
+                                    },
+                                    function() { // failure
+                                        console.error('Delete failure');
+                                        console.error(arguments);
+                                        alert('Failed to delete food.');
+                                    }
+                                );
+                            }
                         },
                         function() { // failure
-                            console.error('Delete failure');
+                            console.error('queryByFoodId failure');
                             console.error(arguments);
-                            $scope.selectedFood = undefined;
-                            alert('Failed to delete food.');
+                            alert('Failed to contact server');
                         }
                     );
                 };
 
-                var _queryByFoodId = undefined;
-                var _deleteClass = 'disabled';
-                var dietEntriesForFood = undefined;
+                $scope.edit = function (food) {
+                    var modalInstance = $modal.open({
+                        animation: true,
+                        backdrop: 'static',
+                        size: 'lg',
+                        templateUrl: 'foodEditor.html',
+                        controller: 'DietFoodEditor',
+                        resolve: {
+                            Columns: function() { return $scope.columns; },
+                            SelectedFood: function() { return food; }
+                        }
+                    });
 
-                $scope.deleteBtnClass = function() {
-                    if (!$scope.selectedFood || $scope.foods.indexOf($scope.selectedFood) < 0) {
-                        _queryByFoodId = undefined;
-                        _deleteClass = 'disabled';
-                        dietEntriesForFood = undefined;
-                    } else if (_queryByFoodId != $scope.selectedFood.id) {
-                        _queryByFoodId = $scope.selectedFood.id;
-                        DietEntry.queryByFoodId({food_id: _queryByFoodId},
-                            function(response) { // success
-                                if (response.length) {
-                                    _deleteClass = 'btn-danger';
-                                    var dietEntry = response[response.length - 1];
-                                    dietEntriesForFood = {entries: response.length, entryDate: dietEntry.entry_date};
-                                } else {
-                                    _deleteClass = 'btn-warning';
-                                    dietEntriesForFood = {entries: 0};
-                                }
-                            },
-                            function() { // failure
-                                console.error('queryByFoodId failure');
-                                console.error(arguments);
-                                _deleteClass = 'btn-danger';
-                                dietEntriesForFood = {error: 'Error fetching diet entries.  Number of entries unknown.'};
+                    modalInstance.result.then(
+                        function(result) {
+                            if (result.delete) {
+                                $scope.delete(food);
                             }
-                        );
-                    }
-                    return _deleteClass;
+                        },
+                        function() {
+                            //?
+                        }
+                    );
                 };
 
-                $scope.deleteBtnTitle = function() {
-                    if (!dietEntriesForFood) return '';
-                    if (dietEntriesForFood.error) return dietEntriesForFood.error;
-                    return '<div>' + (dietEntriesForFood.entries || 'No') + ' entries found.</div>' + (dietEntriesForFood.entries ? '<div>Most recent ' + dietEntriesForFood.entryDate + '.</div>' : '');
+            }])
+            .controller('DietFoodEditor', ['$scope', '$modalInstance', 'Food', 'Columns', 'SelectedFood', function($scope, $modalInstance, Food, Columns, SelectedFood) {
+
+                $scope.columns = Columns;
+                $scope.selectedFood = SelectedFood;
+
+                $scope.delete = function () {
+                    $modalInstance.close({delete: true});
+                };
+
+                $scope.done = function () {
+                    $modalInstance.close({});
                 };
 
                 var getSet = function(key, _newValue) {
-                    if (!$scope.selectedFood || $scope.foods.indexOf($scope.selectedFood) < 0 || arguments.length == 0) return undefined;
-
+                    if (!$scope.selectedFood || arguments.length == 0) return undefined;
+                    
                     if (arguments.length < 2) return $scope.selectedFood[key];
 
                     if (('' + $scope.selectedFood[key]) != ('' + _newValue)) {
@@ -469,7 +486,7 @@
                 $scope.gs_potassium = function() { return arguments.length ? getSet('potassium', arguments[0]) : getSet('potassium'); }
                 $scope.gs_wwpoints = function() { return arguments.length ? getSet('wwpoints', arguments[0]) : getSet('wwpoints'); }
 
-            }]);
+            }])
             ;
 
             var dietDirectives = angular.module('info.drealm.diet.directives', []);
@@ -512,8 +529,16 @@
         </script>
 
         <link rel="stylesheet" type="text/css" href="/css/drealm.css" />
-        <link rel="stylesheet" type="text/css" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.4/css/bootstrap.css" />
-        <link rel="stylesheet" type="text/css" href="https://maxcdn.bootstrapcdn.com/bootswatch/3.3.4/lumen/bootstrap.min.css">
+        <link rel="stylesheet" type="text/css" href="//maxcdn.bootstrapcdn.com/bootstrap/3.3.4/css/bootstrap.css" />
+        <link rel="stylesheet" type="text/css" href="//maxcdn.bootstrapcdn.com/bootswatch/3.3.4/lumen/bootstrap.min.css">
+        <style>
+.odd-food {
+    background: #fefefe;
+}
+.even-food {
+    background: #efefef;
+}
+        </style>
     </head>
 
     <body>
@@ -542,7 +567,7 @@
                     </div></div>
                     <div class="visible-lg-block col-sm-4">&nbsp;</div>
                     <div><div class="visible-lg-block col-sm-4">
-                        <button class="btn btn-warning pull-right" data-ng-click="foodEditor()"><span class="glyphicon glyphicon-modal-window"></span> Food Editor</button>
+                        <button class="btn btn-warning pull-right" data-ng-click="foodListEditor()"><span class="glyphicon glyphicon-modal-window"></span> Food Editor</button>
                     </div></div>
                 </div>
 
@@ -649,7 +674,7 @@
 
             </div>
 
-            <script type="text/ng-template" id="dietDaily.html">
+            <script type="text/ng-template" id="dietDaily.html"><span></span>
                 <div class="form-inline">
                     <label for="{{which}}_{{what}}" class="col-xs-8 col-sm-8 control-label">{{label}}</label>
                     <input type="text" class="col-xs-1 col-sm-1 form-control" style="width: auto;" size="7" readonly value="{{what[which] | number: dp}}" name="{{which}}_{{what}}" data-ng-bind="what[which]" />
@@ -661,17 +686,42 @@
                 <input type="number" class="form-control" style="width: auto;" size="7" value="{{what[which]}}" name="edit_{{which}}" data-ng-bind="what[which].value" />
             </script>
 
+            <script type="text/ng-template" id="foodListEditor.html">
+                <div class="container-fluid text-primary bg-primary"><span></span>
+                    &nbsp;
+                    <div class="well">
+                        <div class="row">
+                            <div class="col-lg-12">
+                                <span class="pull-right">
+                                    <button class="btn btn-success" id="add" data-ng-click="add()">Add Food</button>
+                                    <button class="btn btn-primary" id="save" data-ng-click="done()">Done</button>
+                                </span>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-lg-1">&nbsp;</div>
+                            <span data-ng-repeat="which in columns"><div class="{{$index ? 'col-lg-1' : 'col-lg-2'}}">{{which.label}}</div></span>
+                        </div>
+                        <div class="row" data-ng-repeat="food in foods" data-ng-class-odd="'odd-food'" data-ng-class-even="'even-food'">
+                            <span class="col-lg-1">
+                                <button class="btn btn-sm btn-primary" data-ng-click="edit(food)">Edit</button>
+                                <button class="btn btn-sm btn-warning" data-ng-click="delete(food)">Delete</button>
+                            </span>
+                            <span data-ng-repeat="which in columns"><span class="{{$index ? 'col-lg-1' : 'col-lg-2'}}">{{food[which.key]}}</span></span>
+                        </div>
+                    </div>
+                </div>
+            </script>
+
             <script type="text/ng-template" id="foodEditor.html">
-                <div class="container-fluid text-primary bg-primary">
+                <div class="container-fluid text-primary bg-default"><span></span>
                     &nbsp;
                     <div class="well form-horizontal">
                         <div class="row form-group">
                             <div class="col-lg-12">
-                                <button class="btn" data-ng-class="deleteBtnClass()" id="delete" data-ng-click="delete()"
-                                tooltip-enable="true" tooltip-trigger="mouseenter" tooltip-placement="bottom" tooltip-html="deleteBtnTitle()">Delete Food</button>
-                                <button class="btn btn-success" id="add" data-ng-click="add()">Add Food</button>
                                 <span class="pull-right">
-                                    <button class="btn btn-default" id="save" data-ng-click="done()">Done</button>
+                                    <button class="btn btn-warning" id="delete" data-ng-click="delete()">Delete Food</button>
+                                    <button class="btn btn-primary" id="save" data-ng-click="done()">Done</button>
                                 </span>
                             </div>
                         </div>
@@ -686,18 +736,6 @@
                                     <label for="edit_{{which.key}}" class="control-label col-lg-3">{{which.label}}</label>
                                     <input type="text" name="edit_{{which.key}}" class="form-control col-lg-1" size="7" value="{{$parent['gs_' + which.key]()}}" data-ng-model="$parent['gs_' + which.key]" data-ng-model-options="{debounce: 300, getterSetter: true}" />
                                 </div>
-                        </div>
-                    </div>
-                    <div class="well" style=" max-height: 95% !important; overflow: auto;">
-                        <div class="row">
-                            <div class="col-lg-1">Select</div>
-                            <span data-ng-repeat="which in columns"><div class="{{$index ? 'col-lg-1' : 'col-lg-2'}}">{{which.label}}</div></span>
-                        </div>
-                        <div class="row" data-ng-repeat="food in foods">
-                            <div class="col-lg-1">
-                                <input type="radio" data-ng-model="$parent.selectedFood" data-ng-value="food" />
-                            </div>
-                            <span data-ng-repeat="which in columns"><div class="{{$index ? 'col-lg-1' : 'col-lg-2'}}">{{food[which.key]}}</div></span>
                         </div>
                     </div>
                 </div>
