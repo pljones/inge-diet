@@ -147,17 +147,10 @@
                 $scope.isOpen = false;
                 $scope.selectedDate = undefined;
                 $scope.sdComparable = undefined;
-                $scope.getSetSelectedDate = function(_newValue) {
-                    if (_newValue && $scope.selectedDate != _newValue) {
-                        $scope.selectedDate = _newValue;
-                        $scope.sdComparable = $filter('date')($scope.selectedDate, 'yyyy-MM-dd', 0);
-                        getFoodItems();
-                    }
-                    return $scope.selectedDate;
-                };
-
                 $scope.today = new Date();
-
+                $scope.foods = [];
+                $scope.foodItems = [];
+                $scope.dietEntries = [];
                 $scope.totals = {
                     'calories': { label: 'Calories', value: 0 },
                     'wwpoints': { label: 'WW Points', value: 0 },
@@ -171,7 +164,15 @@
                     'potassium': { label: 'Potassium', value: 0 },
                 };
 
-                $scope.foods = [];
+                $scope.getSetSelectedDate = function(_newValue) {
+                    if (_newValue && $scope.selectedDate != _newValue) {
+                        $scope.selectedDate = _newValue;
+                        $scope.sdComparable = $filter('date')($scope.selectedDate, 'yyyy-MM-dd', 0);
+                        getFoodItems();
+                    }
+                    return $scope.selectedDate;
+                };
+
                 var fetchFoods = function(success, failure) {
                     Food.query({by: 'name'},
                         function(value) { //success
@@ -186,15 +187,9 @@
                     );
                 };
 
-                $scope.dietEntries = [];
-
                 var getFoodItems = function() {
 
                     $scope.foodItems = [];
-
-                    if ($scope.foods.length === 0) {
-                        return;
-                    }
 
                     angular.forEach($scope.totals, function(total, id) {
                         total.value = 0;
@@ -202,6 +197,10 @@
                             total.percentage = 0;
                         }
                     });
+
+                    if (!$scope.sdComparable || $scope.foods.length === 0) {
+                        return;
+                    }
 
                     var id = 0;
                     var dietEntries = DietEntry.queryByDate(
@@ -222,7 +221,6 @@
                 };
 
                 var calculateTotals = function() {
-                    var todaysFoodItems = $scope.foodItems;
 
                     angular.forEach($scope.totals, function(total, id) {
                         total.value = 0;
@@ -232,12 +230,12 @@
                     });
 
                     // Get total calories
-                    angular.forEach(todaysFoodItems, function(foodItem, index, array) {
+                    angular.forEach($scope.foodItems, function(foodItem, index, array) {
                         $scope.totals.calories.value += foodItem.calories();
                     });
 
                     // Get total for other entry nutrient
-                    angular.forEach(todaysFoodItems, function(foodItem, index, array) {
+                    angular.forEach($scope.foodItems, function(foodItem, index, array) {
                         angular.forEach($scope.totals, function(total, id) {
                             if (id != 'calories' && typeof foodItem[id] !== 'undefined') {
                                 total.value += foodItem[id]();
@@ -271,9 +269,6 @@
                         );
                     }
 
-                    this.id = 0 + dietEntry.id;
-                    this.dietEntry = dietEntry;
-
                     this.getSetDate = function(_newValue) {
                         if (arguments.length && self.dietEntry.entry_date != $filter('date')(_newValue, 'yyyy-MM-dd', 0)) {
                             self.dietEntry.entry_date = $filter('date')(_newValue, 'yyyy-MM-dd', 0);
@@ -283,16 +278,16 @@
                     };
 
                     this.findFood = function(foodId) { return $filter('filter')($scope.foods, function(food, index, foods) { return food.id === foodId; }, true).pop(); };
-                    this.food = self.findFood(self.dietEntry.food_id);
 
                     this.getSetFoodId = function(_newValue) {
                         if (arguments.length && self.dietEntry.food_id != _newValue) {
                             self.dietEntry.food_id = _newValue;
-                            self.food = self.findFood(dietEntry.food_id);
+                            self.food = self.findFood(self.dietEntry.food_id);
                             self.save();
                         }
                         return self.dietEntry.food_id;
                     };
+
                     this.getSetQuantity = function(_newValue) {
                         if (arguments.length && self.dietEntry.quantity != _newValue) {
                             self.dietEntry.quantity = _newValue;
@@ -312,6 +307,10 @@
                     this.fruitnveg =    function() { return self.calculate('fruitnveg'); };
                     this.sodium =       function() { return self.calculate('sodium'); };
                     this.potassium =    function() { return self.calculate('potassium'); };
+
+                    this.id = 0 + dietEntry.id;
+                    this.dietEntry = dietEntry;
+                    this.food = self.findFood(self.dietEntry.food_id);
 
                 };
 
@@ -380,11 +379,11 @@
 
                 $scope.archiveDietEntries = function() {
                     var modalInstance = $modal.open({
-                    animation: true,
-                        backdrop: 'static',
-                        size: 'lg',
-                        templateUrl: 'archiveDietEntries.html',
-                        controller: 'DietArchiveEntries'
+                        animation: true,
+                            backdrop: 'static',
+                            size: 'lg',
+                            templateUrl: 'archiveDietEntries.html',
+                            controller: 'DietArchiveEntries'
                     });
 
                     modalInstance.result.then(function() { getFoodItems(); }, function() { getFoodItems(); });
@@ -443,16 +442,21 @@
                     );
                 };
 
-                $scope.delete = function(food) {
+                $scope.delete = function(food, e) {
+                    if (e) {
+                        e.stopPropagation();
+                    }
                     if ($scope.foods.indexOf(food) < 0) {
                         return;
                     }
-                    _queryByFoodId = food.id;
+                    var _queryByFoodId = food.id;
                     DietEntry.queryByFoodId({food_id: _queryByFoodId},
                         function(response) { // success
+                            var _deleteClass;
+                            var dietEntriesForFood;
                             if (response.length) {
-                                _deleteClass = 'btn-danger';
                                 var dietEntry = response[response.length - 1];
+                                _deleteClass = 'btn-danger';
                                 dietEntriesForFood = {entries: response.length, entryDate: dietEntry.entry_date};
                             } else {
                                 _deleteClass = 'btn-warning';
@@ -569,6 +573,11 @@
             .controller('DietArchiveEntries', ['$scope', '$filter', '$modalInstance', 'DietEntry', 'Query', 'ArchiveDietEntries', function($scope, $filter, $modalInstance, DietEntry, Query, ArchiveDietEntries) {
 
                 $scope.archiveId = "";
+                $scope.archivedEntryCount =  '(count unknown)';
+                $scope.foodFreedCount = "(count unknown)";
+                var startDate;
+                var endDate;
+                var archiveList = [];
 
                 var setFirstEntryDate = function() {
                     DietEntry.firstEntry(
@@ -588,7 +597,6 @@
                 };
                 setFirstEntryDate();
 
-                var startDate;
                 $scope.getSetStartDate = function(_newValue) {
                     if (arguments.length && startDate != _newValue) {
                         startDate = _newValue;
@@ -598,7 +606,6 @@
                     return startDate;
                 }
 
-                var endDate;
                 $scope.getSetEndDate = function(_newValue) {
                     if (arguments.length && endDate != _newValue) {
                         endDate = _newValue;
@@ -608,7 +615,6 @@
                     return endDate;
                 }
 
-                $scope.archivedEntryCount =  '(count unknown)';
                 var updateArchivedEntryCount = function() {
                     if (!startDate || !endDate) {
                         return;
@@ -626,7 +632,6 @@
                     );
                 };
 
-                $scope.foodFreedCount = "(count unknown)";
                 var updateFoodFreedCount = function() {
                     if (!startDate || !endDate) {
                         return;
@@ -671,7 +676,6 @@
                     $modalInstance.close({});
                 };
 
-                var archiveList = [];
                 $scope.getSetArchiveList = function(_newValue) {
                     if (arguments.length && archiveList != _newValue) {
                         archiveList = _newValue;
@@ -925,11 +929,11 @@
                             <div class="col-lg-1">&nbsp;</div>
                             <span data-ng-repeat="which in columns"><div class="{{$index ? 'col-lg-1' : 'col-lg-2'}}">{{which.label}}</div></span>
                         </div>
-                        <div class="row" data-ng-repeat="food in foods" data-ng-class-odd="'odd-food'" data-ng-class-even="'even-food'">
+                        <div class="row" data-ng-repeat="food in foods" data-ng-class-odd="'odd-food'" data-ng-class-even="'even-food'" data-ng-click="edit(food)">
                             <span class="col-lg-1">
-                                <button class="btn btn-sm btn-warning" data-ng-click="delete(food)">Delete</button>
+                                <button class="btn btn-sm btn-warning" data-ng-click="delete(food, $event)">Delete</button>
                             </span>
-                            <span data-ng-click="edit(food)"><span data-ng-repeat="which in columns"><span class="{{$index ? 'col-lg-1' : 'col-lg-2'}}">{{food[which.key]}}</span></span></span>
+                            <div><span data-ng-repeat="which in columns"><span class="{{$index ? 'col-lg-1' : 'col-lg-2'}}">{{food[which.key]}}</span></span></div>
                         </div>
                     </div>
                 </div>
@@ -940,9 +944,13 @@
                     &nbsp;
                     <div class="well form-horizontal">
                         <div class="row form-group">
-                            <div class="col-lg-12">
+                            <div class="col-lg-6">
+                                <span>
+                                    <button class="btn btn-warning" id="delete" data-ng-click="delete()">Delete Food</button>
+                                </span>
+                            </div>
+                            <div class="col-lg-6">
                                 <span class="pull-right">
-                                    <!-- button class="btn btn-warning" id="delete" data-ng-click="delete()">Delete Food</button-->
                                     <button class="btn btn-primary" id="save" data-ng-click="done()">Done</button>
                                 </span>
                             </div>
