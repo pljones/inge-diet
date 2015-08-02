@@ -367,7 +367,8 @@
                                     columns.push({
                                         'key': name,
                                         'label': $scope.totals[name].label,
-                                        'listLabel': $scope.totals[name].editLabel
+                                        'listLabel': $scope.totals[name].editLabel,
+                                        'listShow': $scope.totals[name].editListHide !== true
                                     });
                                 });
                                 return columns;
@@ -405,6 +406,8 @@
             .controller('DietFoodListEditor', ['$scope', '$modalInstance', '$modal', 'Food', 'DietEntry', 'Columns', function($scope, $modalInstance,  $modal, Food, DietEntry, Columns) {
 
                 $scope.columns = Columns;
+
+                $scope.columnFilter = function(e, i, a) { return e.listShow !== false; };
 
                 $scope.foods = Food.query({by: 'name'},
                     function() { // success
@@ -929,13 +932,13 @@
                         <div>&nbsp;</div>
                         <div class="row">
                             <div class="col-lg-1">&nbsp;</div>
-                            <span data-ng-repeat="which in columns"><div class="{{$index ? 'col-lg-1' : 'col-lg-2'}}">{{which.listLabel || which.label}}</div></span>
+                            <span data-ng-repeat="which in columns | filter:columnFilter"><div class="{{$index ? 'col-lg-1' : 'col-lg-3'}}">{{which.listLabel || which.label}}</div></span>
                         </div>
                         <div class="row" data-ng-repeat="food in foods" data-ng-class-odd="'odd-food'" data-ng-class-even="'even-food'" data-ng-click="edit(food)">
                             <span class="col-lg-1">
                                 <button class="btn btn-sm btn-warning" data-ng-click="delete(food, $event)">Delete</button>
                             </span>
-                            <div><span data-ng-repeat="which in columns"><span class="{{$index ? 'col-lg-1' : 'col-lg-2'}}">{{food[which.key]}}</span></span></div>
+                            <div><span data-ng-repeat="which in columns | filter:columnFilter"><span class="{{$index ? 'col-lg-1' : 'col-lg-3'}}">{{food[which.key]}}</span></span></div>
                         </div>
                     </div>
                 </div>
