@@ -927,10 +927,9 @@
                         </div>
                         <div class="row" data-ng-repeat="food in foods" data-ng-class-odd="'odd-food'" data-ng-class-even="'even-food'">
                             <span class="col-lg-1">
-                                <button class="btn btn-sm btn-primary" data-ng-click="edit(food)">Edit</button>
                                 <button class="btn btn-sm btn-warning" data-ng-click="delete(food)">Delete</button>
                             </span>
-                            <span data-ng-repeat="which in columns"><span class="{{$index ? 'col-lg-1' : 'col-lg-2'}}">{{food[which.key]}}</span></span>
+                            <span data-ng-click="edit(food)"><span data-ng-repeat="which in columns"><span class="{{$index ? 'col-lg-1' : 'col-lg-2'}}">{{food[which.key]}}</span></span></span>
                         </div>
                     </div>
                 </div>
