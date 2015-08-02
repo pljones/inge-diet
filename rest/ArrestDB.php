@@ -1,124 +1,16 @@
 <?php
-require "db_strings.inc";
-$dsn = "mysql://$mysql_user:$mysql_password@$mysql_hostname/$mysql_schema";
-
-/**
-* The MIT License
-* http://creativecommons.org/licenses/MIT/
-*
-* ArrestDB 1.9.0 (github.com/alixaxel/ArrestDB/)
-* Copyright (c) 2014 Alix Axel <alix.axel@gmail.com>
-*
-* Hackery (C) 2015 Peter L Jones <pljones@users.sf.net>
-*
-**/
-
-
-// Connect to the database (this is horrid)
-if (ArrestDB::Query($dsn) === false)
-{
-    http_response_code(503);
-	exit();
-}
-
-ArrestDB::Serve('GET', '/', function () {
-    
-    if (!isset($_GET['archive'], $_GET['start_date'], $_GET['end_date'])) {
-        http_response_code(400);
-        exit('Required argument omitted');
-    }
-
-    $query = <<<'SQL'
-        SELECT
-            *
-        INTO OUTFILE
-            '%s'
-            FIELDS TERMINATED BY ',' OPTIONALLY ENCLOSED BY '"'
-            LINES TERMINATED BY '\n'
-        FROM
-            diet_entries d
-        WHERE
-            d.entry_date >= ? AND
-            d.entry_date <= ?
-        ;
-SQL;
-    $start_date = preg_replace('[^-0-9]', '', $_GET['start_date']);
-    $end_date   = preg_replace('[^-0-9]', '', $_GET['end_date']);
-    $archive    = sprintf('/tmp/inge_diet-%s-%s-%s-%s.csv', preg_replace('[^A-Za-z0-9_]', '', $_GET['archive']), str_replace('-', '', $start_date), str_replace('-', '', $end_date), date('YmdHid'));
-    
-    $query = sprintf(preg_replace('/\s\s+/', ' ', (implode(' ', explode("\n", $query)))), $archive);
-    $arguments = [ $start_date, $end_date ];
-
-    $result = ArrestDB::Query($query, $arguments);
-	if ($result === false)
-	{
-        http_response_code(404);
-        return;
-	}
-    
-    $rowCount = $result['result']->rowCount();
-    if ($rowCount === 0) {
-        try { unlink($archive); } catch (Exception $e) {
-syslog(LOG_DEBUG, 'As expected, archiveDietEntries is unable to delete ' . $archive);
-        }
-        http_response_code(204);
-        return;
-    }
-    
-    $result = ArrestDB::Query('BEGIN');
-	if ($result === false)
-	{
-        http_response_code(400);
-        exit('Unable to BEGIN transaction');
-	}
-    
-    $query = <<<'SQL'
-    DELETE FROM
-        diet_entries
-    WHERE
-        entry_date >= ? AND
-        entry_date <= ?
-    ;
-SQL;
-    $query = preg_replace('/\s\s+/', ' ', (implode(' ', explode("\n", $query))));
-
-    try
-    {
-        $result = ArrestDB::Query($query, $arguments);
-        if ($result === false)
-        {
-            http_response_code(400);
-            return;
-        }
-        if ($rowCount != $result['result']->rowCount())
-        {
-            syslog(LOG_ERR, sprintf('Archived unloaded %d rows but delete removed %d rows - rolling back.', $rowCount, $result['result']->rowCount()));
-            //$result = ArrestDB::Query('ROLLBACK');
-            //if ($result === false)
-            //{
-            //    http_response_code(400);
-            //    exit('Unable to ROLLBACK transaction!! Oh noes...');
-            //}
-        }
-    }
-    finally
-    {
-        $result = ArrestDB::Query('ROLLBACK');
-        if ($result === false)
-        {
-            http_response_code(400);
-            exit('Unable to ROLLBACK transaction!! Oh noes...');
-        }
-    }
-
-	return ArrestDB::Reply([ 'count' => $rowCount, 'archive' => $archive ]);
-});
-
-http_response_code(400);
-exit('Request failed to match');
-
 class ArrestDB
 {
+    static $Options = [];
+    public static function SetOption($option, $value)
+    {
+        self::$Options[$option] = $value;
+    }
+    public static function GetOption($option)
+    {
+        return isset(self::$Options[$option]) ? self::$Options[$option] : false;
+    }
+
 	public static function Query($query = null)
 	{
 		static $db = null;
@@ -132,30 +24,33 @@ class ArrestDB
                 {
                     if ($db->beginTransaction())
                     {
-                        return [ 'db' => db ];
+                        return ArrestDB::GetOption('RETURN_RAW') ? [ 'db' => $db ] : true;
                     }
+                    syslog(LOG_ERR, sprintf('ArrestDB::Query - BEGIN failed: %s - %s %s %s', $db->errorCode(), $db->errorInfo()[0], $db->errorInfo()[1], $db->errorInfo()[2]));
                     return false;
                 }
                 if ($query === 'COMMIT')
                 {
                     if ($db->commit())
                     {
-                        return [ 'db' => db ];
+                        return ArrestDB::GetOption('RETURN_RAW') ? [ 'db' => $db ] : true;
                     }
+                    syslog(LOG_ERR, sprintf('ArrestDB::Query - COMMIT failed: %s - %s %s %s', $db->errorCode(), $db->errorInfo()[0], $db->errorInfo()[1], $db->errorInfo()[2]));
                     return false;
                 }
                 if ($query === 'ROLLBACK')
                 {
                     if ($db->rollBack())
                     {
-                        return [ 'db' => db ];
+                        return ArrestDB::GetOption('RETURN_RAW') ? [ 'db' => $db ] : true;
                     }
+                    syslog(LOG_ERR, sprintf('ArrestDB::Query - ROLLBACK failed: %s - %s %s %s', $db->errorCode(), $db->errorInfo()[0], $db->errorInfo()[1], $db->errorInfo()[2]));
                     return false;
                 }
 
-				if (strncasecmp($db->getAttribute(\PDO::ATTR_DRIVER_NAME), 'mysql', 5) === 0)
+				if (strncasecmp($db->getAttribute(\PDO::ATTR_DRIVER_NAME), 'mysql', 5) === 0 && !ArrestDB::GetOption('MYSQL_NOTRDQUOTE'))
 				{
-					//$query = strtr($query, '"', '`');
+					$query = strtr($query, '"', '`');
 				}
 
 				if (empty($result[$hash = crc32($query)]) === true)
@@ -164,7 +59,7 @@ class ArrestDB
 				}
 
 				$data = array_slice(func_get_args(), 1);
-                
+
 				if (count($data, COUNT_RECURSIVE) > count($data))
 				{
 					$data = iterator_to_array(new \RecursiveIteratorIterator(new \RecursiveArrayIterator($data)), false);
@@ -172,10 +67,39 @@ class ArrestDB
 
 				if ($result[$hash]->execute($data) === true)
 				{
-					return [ 'db' => $db, 'result' => $result[$hash] ];
+                    if (ArrestDB::GetOption('RETURN_RAW'))
+                    {
+                        return [ 'db' => $db, 'result' => $result[$hash] ];
+                    }
+
+					$sequence = null;
+
+					if ((strncmp($db->getAttribute(\PDO::ATTR_DRIVER_NAME), 'pgsql', 5) === 0) && (sscanf($query, 'INSERT INTO %s', $sequence) > 0))
+					{
+						$sequence = sprintf('%s_id_seq', trim($sequence, '"'));
+					}
+
+					switch (strstr($query, ' ', true))
+					{
+						case 'INSERT':
+						case 'REPLACE':
+							return $db->lastInsertId($sequence);
+
+						case 'UPDATE':
+						case 'DELETE':
+							return $result[$hash]->rowCount();
+
+						case 'SELECT':
+						case 'EXPLAIN':
+						case 'PRAGMA':
+						case 'SHOW':
+							return $result[$hash]->fetchAll();
+					}
+
+					return true;
 				}
-                
-                syslog(LOG_ERR, sprintf("ArrestDB::Query - query failed: %s - %s %s %s", $result[$hash]->errorCode(), $result[$hash]->errorInfo()[0], $result[$hash]->errorInfo()[1], $result[$hash]->errorInfo()[2]));
+
+                syslog(LOG_ERR, sprintf('ArrestDB::Query - query failed: %s - %s %s %s', $result[$hash]->errorCode(), $result[$hash]->errorInfo()[0], $result[$hash]->errorInfo()[1], $result[$hash]->errorInfo()[2]));
 				return false;
 			}
 
@@ -269,9 +193,18 @@ class ArrestDB
 
 		catch (\Exception $exception)
 		{
-            syslog(LOG_ERR, sprintf('ArrestDB::Query - query failed: %s %s', $exception->getCode(), $exception->getMessage()));
-            foreach(explode("\n", $exception->getTraceAsString()) as $e) {
-                syslog(LOG_ERR, "ArrestDB::Query - query failed: " . $e);
+			syslog(LOG_ERR, sprintf('ArrestDB::Query - query failed: %s %s', $exception->getCode(), $exception->getMessage()));
+			foreach(explode("\n", $exception->getTraceAsString()) as $e)
+            {
+				syslog(LOG_ERR, 'ArrestDB::Query - query failed: ' . $e);
+			}
+			foreach(explode("\n", $query) as $e)
+            {
+				syslog(LOG_ERR, 'ArrestDB::Query - query failed: ' . $e);
+			}
+            foreach (self::$Options as $k => $v)
+            {
+                syslog(LOG_ERR, 'ArrestDB::Query - query failed: ' . $k . ' => ' . $v);
             }
 			return false;
 		}
@@ -319,8 +252,8 @@ class ArrestDB
 
 	public static function Serve($on = null, $route = null, $callback = null)
 	{
-        static $root = null;
-        
+		static $root = null;
+
 		if (isset($_SERVER['REQUEST_METHOD']) !== true)
 		{
 			$_SERVER['REQUEST_METHOD'] = 'CLI';

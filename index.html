@@ -19,6 +19,7 @@
         <script>
             //<![CDATA[
 
+            'use strict';
             var energyDensities = {
                 fat: 9,
                 ethanol: 7,
@@ -48,6 +49,19 @@
                 return $resource(
                     'rest/diet_entries/:id', {'id': '@id'},
                     {
+                        countByDateRange: {
+                            method: 'GET',
+                            params: {
+                                start_date: '@start_date',
+                                end_date: '@end_date'
+                            },
+                            url: 'rest/diet_entries?count=true&filter,min,entry_date,:start_date&filter,max,entry_date,:end_date',
+                        },
+                        firstEntry: {
+                            method: 'GET',
+                            url: 'rest/diet_entries?by=entry_date&limit=1',
+                            isArray: true
+                        },
                         queryByDate: {
                             method: 'GET',
                             params: {
@@ -73,6 +87,55 @@
                     }
                 );
             }])
+            .factory('Query', ['$resource', function($resource) {
+                return $resource(
+                'rest/*?query=:query&arguments=:arguments', {},
+                {
+                    foodFreedCount: {
+                        method: 'GET',
+                        params: {
+                            'query': 'foodFreedCount',
+                            'start_date': '@start_date' ,
+                            'end_date': '@end_date'
+                        },
+                        url: 'rest/*?query=:query&arguments=:start_date,:end_date',
+                        isArray: true
+                    }
+                }
+                );
+            }])
+            .factory('ArchiveDietEntries', ['$resource', function($resource) {
+                return $resource(
+                'archiveDietEntries', {},
+                {
+                    list: {
+                        method: 'GET',
+                        isArray: true
+                    },
+                    create: {
+                        method: 'POST',
+                        params: {
+                            'archive': '@archive',
+                            'start_date': '@start_date',
+                            'end_date': '@end_date'
+                        }
+                    },
+                    delete: {
+                        method: 'DELETE',
+                        params: {
+                            'archive': '@archive'
+                        }
+                    },
+                    restore: {
+                        method: 'GET',
+                        params: {
+                            'archive': '@archive'
+                        },
+                        url: 'archiveDietEntries/:archive?action=restore'
+                    }
+                }
+                );
+            }])
             ;
 
             var dietControllers = angular.module('info.drealm.diet.controllers', [
@@ -94,9 +157,6 @@
                 };
 
                 $scope.today = new Date();
-                $scope.setToday = function() {
-                    $scope.getSetSelectedDate($scope.today);
-                };
 
                 $scope.totals = {
                     'calories': { label: 'Calories', value: 0 },
@@ -117,7 +177,7 @@
                         function(value) { //success
                             $scope.foods = value;
                             if (success) success(arguments);
-                        }, 
+                        },
                         function() { //error
                             console.error('Food.query error');
                             console.error(arguments);
@@ -238,7 +298,7 @@
                             self.dietEntry.quantity = _newValue;
                             self.save();
                         }
-                        return self.dietEntry.quantity;
+                        return 1.0000 * self.dietEntry.quantity;
                     };
 
                     this.calculate =    function(what) { return self.dietEntry.quantity * (self.food[what] || 0); };
@@ -318,9 +378,28 @@
                     modalInstance.result.then(function() { fetchFoods(); }, function() { fetchFoods(); });
                 };
 
+                $scope.archiveDietEntries = function() {
+                    var modalInstance = $modal.open({
+                    animation: true,
+                        backdrop: 'static',
+                        size: 'lg',
+                        templateUrl: 'archiveDietEntries.html',
+                        controller: 'DietArchiveEntries'
+                    });
+
+                    modalInstance.result.then(function() { getFoodItems(); }, function() { getFoodItems(); });
+                };
+
+                $scope.quantityFocussed = function(e) {
+                    if (e && e.target) {
+                        var target = e.target;
+                        setTimeout(function() { target.select(); }, 0);
+                    }
+                };
+
                 // ------------------------------
 
-                fetchFoods($scope.setToday);
+                fetchFoods(function() { $scope.getSetSelectedDate($scope.today); });
 
             }])
             .controller('DietFoodListEditor', ['$scope', '$modalInstance', '$modal', 'Food', 'DietEntry', 'Columns', function($scope, $modalInstance,  $modal, Food, DietEntry, Columns) {
@@ -449,7 +528,7 @@
 
                 var getSet = function(key, _newValue) {
                     if (!$scope.selectedFood || arguments.length == 0) return undefined;
-                    
+
                     if (arguments.length < 2) return $scope.selectedFood[key];
 
                     if (('' + $scope.selectedFood[key]) != ('' + _newValue)) {
@@ -485,6 +564,161 @@
                 $scope.gs_sodium = function() { return arguments.length ? getSet('sodium', arguments[0]) : getSet('sodium'); }
                 $scope.gs_potassium = function() { return arguments.length ? getSet('potassium', arguments[0]) : getSet('potassium'); }
                 $scope.gs_wwpoints = function() { return arguments.length ? getSet('wwpoints', arguments[0]) : getSet('wwpoints'); }
+
+            }])
+            .controller('DietArchiveEntries', ['$scope', '$filter', '$modalInstance', 'DietEntry', 'Query', 'ArchiveDietEntries', function($scope, $filter, $modalInstance, DietEntry, Query, ArchiveDietEntries) {
+
+                $scope.archiveId = "";
+
+                var setFirstEntryDate = function() {
+                    DietEntry.firstEntry(
+                        function(response) { // success
+                            console.log({f: 'getFirstEntryDate', s: 'success', a: arguments});
+                            var _firstEntryDate = new Date(response[0].entry_date);
+                            // do not call getSetXDate
+                            startDate = _firstEntryDate;
+                            endDate = _firstEntryDate;
+                            updateArchivedEntryCount();
+                            updateFoodFreedCount();
+                        },
+                        function() { // failure
+                            console.log({f: 'getFirstEntryDate', s: 'failure', a: arguments});
+                        }
+                    );
+                };
+                setFirstEntryDate();
+
+                var startDate;
+                $scope.getSetStartDate = function(_newValue) {
+                    if (arguments.length && startDate != _newValue) {
+                        startDate = _newValue;
+                        updateArchivedEntryCount();
+                        updateFoodFreedCount();
+                    }
+                    return startDate;
+                }
+
+                var endDate;
+                $scope.getSetEndDate = function(_newValue) {
+                    if (arguments.length && endDate != _newValue) {
+                        endDate = _newValue;
+                        updateArchivedEntryCount();
+                        updateFoodFreedCount();
+                    }
+                    return endDate;
+                }
+
+                $scope.archivedEntryCount =  '(count unknown)';
+                var updateArchivedEntryCount = function() {
+                    if (!startDate || !endDate) {
+                        return;
+                    }
+                    DietEntry.countByDateRange(
+                        {start_date: $filter('date')(startDate, 'yyyy-MM-dd', 0), end_date: $filter('date')(endDate, 'yyyy-MM-dd', 0)},
+                        function(response) { // success
+                            console.log({f: 'DietArchiveEntries updateArchivedEntryCount', s: 'success', a: arguments});
+                            $scope.archivedEntryCount = response.count;
+                        },
+                        function() { // failure
+                            console.error({f: 'DietArchiveEntries updateArchivedEntryCount', s: 'failure', a: arguments});
+                            $scope.archivedEntryCount =  '(count unknown)';
+                        }
+                    );
+                };
+
+                $scope.foodFreedCount = "(count unknown)";
+                var updateFoodFreedCount = function() {
+                    if (!startDate || !endDate) {
+                        return;
+                    }
+                    Query.foodFreedCount(
+                        {start_date: $filter('date')(startDate, 'yyyy-MM-dd', 0), end_date: $filter('date')(endDate, 'yyyy-MM-dd', 0)},
+                        function(response) { // success
+                            console.log({f: 'DietArchiveEntries updateFoodFreedCount', s: 'success', a: arguments});
+                            $scope.foodFreedCount = response[0].count;
+                        },
+                        function() { // failure
+                            console.error({f: 'DietArchiveEntries updateFoodFreedCount', s: 'failure', a: arguments});
+                            $scope.foodFreedCount =  '(count unknown)';
+                        }
+                    );
+                };
+
+                $scope.submit = function() {
+                    if (!$scope.archiveDietEntriesForm.$valid) {
+                        return;
+                    }
+                    ArchiveDietEntries.create(
+                        {archive: $scope.archiveId, start_date: $filter('date')(startDate, 'yyyy-MM-dd', 0), end_date: $filter('date')(endDate, 'yyyy-MM-dd', 0)},
+                        function(response, headers) { // success
+                            console.log({f: 'DietArchiveEntries submit', s: 'success', a: arguments, rowCount: rowCount, headers: headers});
+                            var rowCount = response.count;
+                            var archive = headers('Location');
+                            alert(rowCount + ' items written to ' + archive);
+                            $modalInstance.close({});
+                        },
+                        function() { // failure
+                            console.error({f: 'DietArchiveEntries submit', s: 'failure', a: arguments});
+                            alert('Failed');
+                        }
+                    );
+                };
+
+                $scope.close = function() {
+                    $scope.archiveId = "x";
+                    $scope.archiveId.$valid = true;
+                    $scope.archiveDietEntriesForm.$valid = true;
+                    $modalInstance.close({});
+                };
+
+                var archiveList = [];
+                $scope.getSetArchiveList = function(_newValue) {
+                    if (arguments.length && archiveList != _newValue) {
+                        archiveList = _newValue;
+                    }
+                    return archiveList;
+                }
+                var setArchiveList = function() {
+                    ArchiveDietEntries.list(
+                        function(response) { // success
+                            $scope.getSetArchiveList(response);
+                        },
+                        function() { // failure
+                            console.error({f: 'DietArchiveEntries list', s: 'failure', a: arguments});
+                        }
+                    );
+                }
+                setArchiveList();
+
+                $scope.delete = function(item) {
+                    item = item.split('/').reverse()[0];
+                    ArchiveDietEntries.delete(
+                        {archive: item},
+                        function() { // success
+                        },
+                        function() { // failure
+                            console.error({f: 'DietArchiveEntries delete', s: 'failure', a: arguments});
+                            alert('Failed');
+                        }
+                    );
+                };
+
+                $scope.restore = function(item) {
+                    item = item.split('/').reverse()[0];
+                    ArchiveDietEntries.restore(
+                        {archive: item},
+                        function() { // success
+                        },
+                        function() { // failure
+                            console.error({f: 'DietArchiveEntries restore', s: 'failure', a: arguments});
+                            alert('Failed');
+                        }
+                    );
+                };
+
+                $scope.upload = function() {
+                    alert('Not yet implemented');
+                };
 
             }])
             ;
@@ -557,8 +791,8 @@
                                     data-ng-click="isOpen = !isOpen; $event.preventDefault();"
                                     data-ng-required="true"
                                     data-ng-model="getSetSelectedDate" data-ng-model-options="{getterSetter: true}"
-                                    />
-                                <span class="input-group-btn"><input type="button" class="btn btn-primary" id="today" value="Today" data-ng-click="setToday()" /></span>
+                                />
+                                <span class="input-group-btn"><input type="button" class="btn btn-primary" id="today" value="Today" data-ng-click="getSetSelectedDate(today)" /></span>
                             </div>
                         </div>
                     </div>
@@ -567,6 +801,7 @@
                     </div></div>
                     <div class="visible-lg-block col-sm-4">&nbsp;</div>
                     <div><div class="visible-lg-block col-sm-4">
+                        <button class="btn btn-danger" data-ng-click="archiveDietEntries()"><span class="glyphicon glyphicon-modal-window"></span> Archive Diet Entries</button>
                         <button class="btn btn-warning pull-right" data-ng-click="foodListEditor()"><span class="glyphicon glyphicon-modal-window"></span> Food Editor</button>
                     </div></div>
                 </div>
@@ -652,16 +887,16 @@
                             </select>
                         </div>
                     </div>
-                    <div class="col-xs-4 col-sm-2 col-md-1"><input type="text" class="form-control"                              id="quantity"     value="{{foodItem.quantity | number: 2}}" data-ng-model="foodItem.getSetQuantity" data-ng-model-options="{getterSetter: true}" /></div>
-                    <div class="col-xs-4 col-sm-2 col-md-1"><input type="text" class="form-control"                     readonly id="calories"     value="{{foodItem.calories() | number: 2}}" data-ng-bind="foodItem.calories()" /></div>
-                    <div class="col-xs-4 col-sm-2 col-md-1"><input type="text" class="form-control"                     readonly id="protein"      value="{{foodItem.protein() | number: 2}}" data-ng-bind="foodItem.protein()" /></div>
-                    <div class="col-sm-1"                  ><input type="text" class="form-control hidden-xs"           readonly id="carbohydrate" value="{{foodItem.carbohydrate() | number: 2}}" data-ng-bind="foodItem.carbohydrate()" /></div>
-                    <div class="col-sm-1"                  ><input type="text" class="form-control hidden-xs"           readonly id="fat"          value="{{foodItem.fat() | number: 2}}" data-ng-bind="foodItem.fat()" /></div>
-                    <div class="col-md-1"                  ><input type="text" class="form-control hidden-xs hidden-sm" readonly id="fibre"        value="{{foodItem.fibre() | number: 2}}" data-ng-bind="foodItem.fibre()" /></div>
-                    <div class="col-md-1"                  ><input type="text" class="form-control hidden-xs hidden-sm" readonly id="fruitnveg"    value="{{foodItem.fruitnveg() | number: 2}}" data-ng-bind="foodItem.fruitnveg()" /></div>
-                    <div class="col-md-1"                  ><input type="text" class="form-control hidden-xs hidden-sm" readonly id="sodium"       value="{{foodItem.sodium() | number: 4}}" data-ng-bind="foodItem.sodium()" /></div>
-                    <div class="col-md-1"                  ><input type="text" class="form-control hidden-xs hidden-sm" readonly id="potassium"    value="{{foodItem.potassium() | number: 4}}" data-ng-bind="foodItem.potassium()" /></div>
-                    <div class="col-md-1"                  ><input type="text" class="form-control hidden-xs hidden-sm" readonly id="wwpoints"     value="{{foodItem.wwpoints() | number: 2}}" data-ng-bind="foodItem.wwpoints()" /></div>
+                    <div class="col-xs-4 col-sm-2 col-md-1"><input type="number" class="form-control"                              value="{{foodItem.quantity | number: 2}}" data-ng-model="foodItem.getSetQuantity" data-ng-model-options="{getterSetter: true}" data-ng-focus="quantityFocussed($event)" /></div>
+                    <div class="col-xs-4 col-sm-2 col-md-1"><input type="number" class="form-control"                     readonly value="{{foodItem.calories() | number: 2}}" data-ng-bind="foodItem.calories()" /></div>
+                    <div class="col-xs-4 col-sm-2 col-md-1"><input type="number" class="form-control"                     readonly value="{{foodItem.protein() | number: 2}}" data-ng-bind="foodItem.protein()" /></div>
+                    <div class="col-sm-1"                  ><input type="number" class="form-control hidden-xs"           readonly value="{{foodItem.carbohydrate() | number: 2}}" data-ng-bind="foodItem.carbohydrate()" /></div>
+                    <div class="col-sm-1"                  ><input type="number" class="form-control hidden-xs"           readonly value="{{foodItem.fat() | number: 2}}" data-ng-bind="foodItem.fat()" /></div>
+                    <div class="col-md-1"                  ><input type="number" class="form-control hidden-xs hidden-sm" readonly value="{{foodItem.fibre() | number: 2}}" data-ng-bind="foodItem.fibre()" /></div>
+                    <div class="col-md-1"                  ><input type="number" class="form-control hidden-xs hidden-sm" readonly value="{{foodItem.fruitnveg() | number: 2}}" data-ng-bind="foodItem.fruitnveg()" /></div>
+                    <div class="col-md-1"                  ><input type="number" class="form-control hidden-xs hidden-sm" readonly value="{{foodItem.sodium() | number: 4}}" data-ng-bind="foodItem.sodium()" /></div>
+                    <div class="col-md-1"                  ><input type="number" class="form-control hidden-xs hidden-sm" readonly value="{{foodItem.potassium() | number: 4}}" data-ng-bind="foodItem.potassium()" /></div>
+                    <div class="col-md-1"                  ><input type="number" class="form-control hidden-xs hidden-sm" readonly value="{{foodItem.wwpoints() | number: 2}}" data-ng-bind="foodItem.wwpoints()" /></div>
 
                 </div>
 
@@ -673,18 +908,6 @@
                 </div>
 
             </div>
-
-            <script type="text/ng-template" id="dietDaily.html"><span></span>
-                <div class="form-inline">
-                    <label for="{{which}}_{{what}}" class="col-xs-8 col-sm-8 control-label">{{label}}</label>
-                    <input type="text" class="col-xs-1 col-sm-1 form-control" style="width: auto;" size="7" readonly value="{{what[which] | number: dp}}" name="{{which}}_{{what}}" data-ng-bind="what[which]" />
-                </div>
-            </script>
-
-            <script type="text/ng-template" id="dietEditDetail.html">
-                <label for="edit_{{which}}" class="control-label">{{label}}</label>
-                <input type="number" class="form-control" style="width: auto;" size="7" value="{{what[which]}}" name="edit_{{which}}" data-ng-bind="what[which].value" />
-            </script>
 
             <script type="text/ng-template" id="foodListEditor.html">
                 <div class="container-fluid text-primary bg-primary"><span></span>
@@ -741,10 +964,118 @@
                 </div>
             </script>
 
+            <script type="text/ng-template" id="archiveDietEntries.html">
+                <div class="container-fluid"><span></span>
+                    <div>&nbsp;</div>
+                    <div class="well">
+                        <div class="row"><h1 class="col-lg-12">Archive Diet Entries</h1></div>
+                        <div class="row">
+                            <p class="col-lg-12">
+                                Diet entries on Start Date up to and including End Date will be removed from the database
+                                and saved somewhere on the server.
+                            </p>
+                            <p class="col-lg-12">
+                                The file name used will include the Archive ID, start and end dates (specified below) and
+                                the time the archive was produced.
+                            </p>
+                        </div>
+                    </div>
+                    <form name="archiveDietEntriesForm" class="well">
+                        <div class="row">
+                            <div class="col-lg-6">
+                                <div class="row form-horizontal">
+                                    <label class="col-lg-2 control-label" for="startDate">Start Date</label>
+                                    <div class="col-lg-4 input-group">
+                                        <input type="date" required="required" class="form-control"
+                                        name="startDate" id="startDate"
+                                        datepicker-popup show-button-bar="false" show-weeks="false" is-open="isStartOpen"
+                                        data-ng-click="isStartOpen = !isStartOpen; $event.preventDefault();"
+                                        data-ng-required="true"
+                                        data-ng-model="getSetStartDate" data-ng-model-options="{getterSetter: true}"
+                                        />
+                                        <!-- span class="input-group-btn"><input type="button" class="btn btn-primary" id="today" value="Today" data-ng-click="getSetStartDate(today)" /></span -->
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-lg-6">
+                                <div class="row form-horizontal">
+                                    <label class="col-lg-2 control-label" for="endDate">End Date</label>
+                                    <div class="col-lg-4 input-group">
+                                        <input type="date" required="required" class="form-control"
+                                        name="endDate" id="endDate"
+                                        datepicker-popup show-button-bar="false" show-weeks="false" is-open="isEndOpen"
+                                        data-ng-click="isEndOpen = !isEndOpen; $event.preventDefault();"
+                                        data-ng-required="true"
+                                        data-ng-model="getSetEndDate" data-ng-model-options="{getterSetter: true}"
+                                        />
+                                        <!-- span class="input-group-btn"><input type="button" class="btn btn-primary" id="today" value="Today" data-ng-click="getSetEndDate(today)" /></span -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div>&nbsp;</div>
+                        <div class="row">
+                            <p class="col-lg-12">
+                                Number of diet entries to be archived: {{archivedEntryCount}}.
+                            </p>
+                        </div>
+                        <div class="row">
+                            <p class="col-lg-12">
+                                Number of foods thus with no diet entries: {{foodFreedCount}}.
+                            </p>
+                        </div>
+                        <div>&nbsp;</div>
+                        <div class="row">
+                            <div class="col-lg-6">
+                                <div class="row form-horizontal">
+                                    <label class="col-lg-2 control-label" for="archiveId">Archive ID</label>
+                                    <div class="col-lg-4 input-group"><input type="text" required="required" class="form-control" name="archiveId" id="archiveId" data-ng-model="archiveId" /></div>
+                                </div>
+                            </div>
+                            <div class="col-lg-6">
+                                <div class="row form-horizontal">
+                                    <span class="col-lg-12"><span class="pull-right">
+                                        <span class="well"><button class="btn btn-primary" data-ng-click="close()">Close</button></span>
+                                        <span>&nbsp;</span>
+                                        <span class="well"><button class="btn btn-warning" data-ng-click="submit()">Submit</button></span>
+                                    </span></span>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                    <div>&nbsp;</div>
+                    <div class="well">
+                        <div class="row"><h1 class="col-lg-12">Manage Archives</h1></div>
+                        <div class="row" style="padding-bottom: 0.5em;" data-ng-repeat="item in getSetArchiveList()">
+                            <span class="col-lg-1"><button class="btn btn-danger" data-ng-click="delete(item)"><span class="glyphicon glyphicon-trash"></span> Delete</button></span>
+                            <span class="col-lg-1"><button class="btn btn-warning" data-ng-click="restore(item)"><span class="glyphicon glyphicon-share-alt"></span> Restore</button></span>
+                            <span class="col-lg-1"><a href="{{item}}"><button class="btn btn-primary"><span class="glyphicon glyphicon-download"></span> Download</button></a></span>
+                            <span class="col-lg-9">{{item.split('/').reverse()[0]}}</span>
+                        </div>
+                        &nbsp;
+                        <div class="row">
+                            <span class="col-lg-1"><button class="btn"><span class="glyphicon glyphicon-cloud-upload" data-ng-click="upload()"></span> Upload</button></span>
+                        </div>
+                    </div>
+                </div>
+            </script>
+
             <script type="text/ng-template" id="template/modal/window.html">
                 <div modal-render="{{$isRendered}}" tabindex="-1" role="dialog" class="modal" modal-animation-class="fade" ng-class="{in: animate}" ng-style="{'z-index': 1050 + index*10, display: 'block'}" ng-click="close($event)">
                     <div class="modal-dialog" style="width: 95% !important; max-height: 92% !important; overflow: auto;" ng-class="size ? 'modal-' + size : ''"><div class="modal-content" modal-transclude></div></div>
                 </div>
+            </script>
+
+            <script type="text/ng-template" id="dietDaily.html"><span></span>
+                <div class="form-inline">
+                    <label for="{{which}}_{{what}}" class="col-xs-8 col-sm-8 control-label">{{label}}</label>
+                    <input type="text" class="col-xs-1 col-sm-1 form-control" style="width: auto;" size="7" readonly value="{{what[which] | number: dp}}" name="{{which}}_{{what}}" data-ng-bind="what[which]" />
+                </div>
+            </script>
+
+            <script type="text/ng-template" id="dietEditDetail.html">
+                <label for="edit_{{which}}" class="control-label">{{label}}</label>
+                <input type="number" class="form-control" style="width: auto;" size="7" value="{{what[which]}}" name="edit_{{which}}" data-ng-bind="what[which].value" />
             </script>
 
         </div>
