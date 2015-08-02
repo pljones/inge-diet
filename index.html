@@ -159,9 +159,9 @@
                     //'sugar': { label: 'Sugar', text: "of which Sugars", value: 0 },
                     'fat': { label: 'Fats', value: 0 },
                     'fibre': { label: 'Fibre', value: 0 },
-                    'fruitnveg': { label: 'Ptns Fruit/Veg', value: 0 },
+                    'fruitnveg': { label: 'Ptns Fruit/Veg', value: 0, editLabel: '5 a day' },
                     'sodium': { label: 'Sodium', value: 0 },
-                    'potassium': { label: 'Potassium', value: 0 },
+                    'potassium': { label: 'Potassium', value: 0, editLabel: 'Potas.' },
                 };
 
                 $scope.getSetSelectedDate = function(_newValue) {
@@ -366,7 +366,8 @@
                                 ['calories', 'protein', 'carbohydrate', 'fat', 'fibre', 'fruitnveg', 'sodium', 'potassium', 'wwpoints'].forEach(function(name) {
                                     columns.push({
                                         'key': name,
-                                        'label': $scope.totals[name].label
+                                        'label': $scope.totals[name].label,
+                                        'listLabel': $scope.totals[name].editLabel
                                     });
                                 });
                                 return columns;
@@ -928,7 +929,7 @@
                         <div>&nbsp;</div>
                         <div class="row">
                             <div class="col-lg-1">&nbsp;</div>
-                            <span data-ng-repeat="which in columns"><div class="{{$index ? 'col-lg-1' : 'col-lg-2'}}">{{which.label}}</div></span>
+                            <span data-ng-repeat="which in columns"><div class="{{$index ? 'col-lg-1' : 'col-lg-2'}}">{{which.listLabel || which.label}}</div></span>
                         </div>
                         <div class="row" data-ng-repeat="food in foods" data-ng-class-odd="'odd-food'" data-ng-class-even="'even-food'" data-ng-click="edit(food)">
                             <span class="col-lg-1">
