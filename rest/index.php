@@ -265,7 +265,8 @@ ArrestDB::Serve('DELETE', '/(#any)/(#num)', function ($table, $id)
 
 	else
 	{
-		$result = ArrestDB::$HTTP[200];
+		http_response_code(200);
+		$result = '';
 	}
 
 	return ArrestDB::Reply($result);
