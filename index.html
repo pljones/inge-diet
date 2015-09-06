@@ -895,16 +895,16 @@
                             </select>
                         </div>
                     </div>
-                    <div class="col-xs-4 col-sm-2 col-md-1"><input type="number" class="form-control"                              value="{{foodItem.quantity | number: 2}}" data-ng-model="foodItem.getSetQuantity" data-ng-model-options="{getterSetter: true}" data-ng-focus="quantityFocussed($event)" /></div>
-                    <div class="col-xs-4 col-sm-2 col-md-1"><input type="number" class="form-control"                     readonly value="{{foodItem.calories() | number: 2}}" data-ng-bind="foodItem.calories()" /></div>
-                    <div class="col-xs-4 col-sm-2 col-md-1"><input type="number" class="form-control"                     readonly value="{{foodItem.protein() | number: 2}}" data-ng-bind="foodItem.protein()" /></div>
-                    <div class="col-sm-1"                  ><input type="number" class="form-control hidden-xs"           readonly value="{{foodItem.carbohydrate() | number: 2}}" data-ng-bind="foodItem.carbohydrate()" /></div>
-                    <div class="col-sm-1"                  ><input type="number" class="form-control hidden-xs"           readonly value="{{foodItem.fat() | number: 2}}" data-ng-bind="foodItem.fat()" /></div>
-                    <div class="col-md-1"                  ><input type="number" class="form-control hidden-xs hidden-sm" readonly value="{{foodItem.fibre() | number: 2}}" data-ng-bind="foodItem.fibre()" /></div>
-                    <div class="col-md-1"                  ><input type="number" class="form-control hidden-xs hidden-sm" readonly value="{{foodItem.fruitnveg() | number: 2}}" data-ng-bind="foodItem.fruitnveg()" /></div>
-                    <div class="col-md-1"                  ><input type="number" class="form-control hidden-xs hidden-sm" readonly value="{{foodItem.sodium() | number: 4}}" data-ng-bind="foodItem.sodium()" /></div>
-                    <div class="col-md-1"                  ><input type="number" class="form-control hidden-xs hidden-sm" readonly value="{{foodItem.potassium() | number: 4}}" data-ng-bind="foodItem.potassium()" /></div>
-                    <div class="col-md-1"                  ><input type="number" class="form-control hidden-xs hidden-sm" readonly value="{{foodItem.wwpoints() | number: 2}}" data-ng-bind="foodItem.wwpoints()" /></div>
+                    <div class="col-xs-4 col-sm-2 col-md-1"><input type="number" class="form-control"                     required value="{{foodItem.quantity | number: 2}}" data-ng-model="foodItem.getSetQuantity" data-ng-model-options="{getterSetter: true}" data-ng-focus="quantityFocussed($event)" /></div>
+                    <div class="col-xs-4 col-sm-2 col-md-1"><input type="text"   class="form-control"                     readonly value="{{foodItem.calories() | number: 2}}" data-ng-bind="foodItem.calories()" /></div>
+                    <div class="col-xs-4 col-sm-2 col-md-1"><input type="text"   class="form-control"                     readonly value="{{foodItem.protein() | number: 2}}" data-ng-bind="foodItem.protein()" /></div>
+                    <div class="col-sm-1"                  ><input type="text"   class="form-control hidden-xs"           readonly value="{{foodItem.carbohydrate() | number: 2}}" data-ng-bind="foodItem.carbohydrate()" /></div>
+                    <div class="col-sm-1"                  ><input type="text"   class="form-control hidden-xs"           readonly value="{{foodItem.fat() | number: 2}}" data-ng-bind="foodItem.fat()" /></div>
+                    <div class="col-md-1"                  ><input type="text"   class="form-control hidden-xs hidden-sm" readonly value="{{foodItem.fibre() | number: 2}}" data-ng-bind="foodItem.fibre()" /></div>
+                    <div class="col-md-1"                  ><input type="text"   class="form-control hidden-xs hidden-sm" readonly value="{{foodItem.fruitnveg() | number: 2}}" data-ng-bind="foodItem.fruitnveg()" /></div>
+                    <div class="col-md-1"                  ><input type="text"   class="form-control hidden-xs hidden-sm" readonly value="{{foodItem.sodium() | number: 4}}" data-ng-bind="foodItem.sodium()" /></div>
+                    <div class="col-md-1"                  ><input type="text"   class="form-control hidden-xs hidden-sm" readonly value="{{foodItem.potassium() | number: 4}}" data-ng-bind="foodItem.potassium()" /></div>
+                    <div class="col-md-1"                  ><input type="text"   class="form-control hidden-xs hidden-sm" readonly value="{{foodItem.wwpoints() | number: 2}}" data-ng-bind="foodItem.wwpoints()" /></div>
 
                 </div>
 
