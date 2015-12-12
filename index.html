@@ -789,10 +789,10 @@
 
             <div class="well">
                 <div class="row bg-default" id="datePicker">
-                    <div class="col-xs-8 col-sm-4 form-group">
+                    <div class="col-xs-7 col-sm-8 col-md-4 form-group">
                         <div class="form-horizontal">
-                            <label class="hidden-xs col-sm-4 col-md-8 control-label" for="selectedDate">Date</label>
-                            <div class="col-xs-1 col-lg-7 input-group">
+                            <label class="hidden-xs col-sm-1 control-label" for="selectedDate">Date</label>
+                            <div class="col-xs-8 col-sm-7 input-group">
                                 <input type="date" class="form-control"
                                     name="selectedDate" id="selectedDate"
                                     datepicker-popup show-button-bar="false" show-weeks="false" is-open="isOpen"
@@ -807,8 +807,8 @@
                     <div data-ng-init="xsTotalsCollapsed = true"><div class="visible-xs-block col-xs-1">
                         <button class="btn btn-info" data-ng-click="xsTotalsCollapsed = !xsTotalsCollapsed">{{xsTotalsCollapsed ? 'Show' : 'Hide'}} Totals</button>
                     </div></div>
-                    <div class="visible-lg-block col-sm-4">&nbsp;</div>
-                    <div><div class="visible-lg-block col-sm-4">
+                    <div class="visible-lg-block col-md-4">&nbsp;</div>
+                    <div><div class="visible-lg-block col-md-4">
                         <button class="btn btn-danger" data-ng-click="archiveDietEntries()"><span class="glyphicon glyphicon-modal-window"></span> Archive Diet Entries</button>
                         <button class="btn btn-warning pull-right" data-ng-click="foodListEditor()"><span class="glyphicon glyphicon-modal-window"></span> Food Editor</button>
                     </div></div>
