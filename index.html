@@ -10,12 +10,12 @@
         <title>Daily dietary consumption capture and totals reporting</title>
 
 
-        <script src="//ajax.googleapis.com/ajax/libs/angularjs/1.4.8/angular.js"></script>
-        <script src="//ajax.googleapis.com/ajax/libs/angularjs/1.4.8/angular-resource.js"></script>
-        <script src="//ajax.googleapis.com/ajax/libs/angularjs/1.4.8/angular-route.js"></script>
-        <script src="//ajax.googleapis.com/ajax/libs/angularjs/1.4.8/angular-sanitize.js"></script>
-        <script src="//ajax.googleapis.com/ajax/libs/angularjs/1.4.8/angular-animate.js"></script>
-        <script src="//cdnjs.cloudflare.com/ajax/libs/angular-ui-bootstrap/0.14.3/ui-bootstrap-tpls.js"></script>
+        <script src="//ajax.googleapis.com/ajax/libs/angularjs/1.4.10/angular.js"></script>
+        <script src="//ajax.googleapis.com/ajax/libs/angularjs/1.4.10/angular-resource.js"></script>
+        <script src="//ajax.googleapis.com/ajax/libs/angularjs/1.4.10/angular-route.js"></script>
+        <script src="//ajax.googleapis.com/ajax/libs/angularjs/1.4.10/angular-sanitize.js"></script>
+        <script src="//ajax.googleapis.com/ajax/libs/angularjs/1.4.10/angular-animate.js"></script>
+        <script src="//cdnjs.cloudflare.com/ajax/libs/angular-ui-bootstrap/1.3.2/ui-bootstrap-tpls.js"></script>
         <script>
             //<![CDATA[
 
@@ -142,7 +142,7 @@
                 'info.drealm.diet.services'
             ]);
             dietControllers
-            .controller('Diet', ['$scope', '$filter', '$modal', 'Food', 'DietEntry', function($scope, $filter, $modal, Food, DietEntry) {
+            .controller('Diet', ['$scope', '$filter', '$uibModal', 'Food', 'DietEntry', function($scope, $filter, $uibModal, Food, DietEntry) {
 
                 $scope.isOpen = false;
                 $scope.selectedDate = undefined;
@@ -334,7 +334,6 @@
 
                 $scope.addFoodItem = function() {
                     var dietEntry = {
-                        id:         -1,
                         entry_date: $scope.sdComparable,
                         food_id:    $scope.foods[0].id,
                         quantity:   1
@@ -354,7 +353,7 @@
                 };
 
                 $scope.foodListEditor = function () {
-                    var modalInstance = $modal.open({
+                    var modalInstance = $uibModal.open({
                         animation: true,
                         backdrop: 'static',
                         size: 'lg',
@@ -380,7 +379,7 @@
                 };
 
                 $scope.archiveDietEntries = function() {
-                    var modalInstance = $modal.open({
+                    var modalInstance = $uibModal.open({
                         animation: true,
                             backdrop: 'static',
                             size: 'lg',
@@ -403,7 +402,7 @@
                 fetchFoods(function() { $scope.getSetSelectedDate($scope.today); });
 
             }])
-            .controller('DietFoodListEditor', ['$scope', '$modalInstance', '$modal', 'Food', 'DietEntry', 'Columns', function($scope, $modalInstance,  $modal, Food, DietEntry, Columns) {
+            .controller('DietFoodListEditor', ['$scope', '$uibModalInstance', '$uibModal', 'Food', 'DietEntry', 'Columns', function($scope, $uibModalInstance,  $uibModal, Food, DietEntry, Columns) {
 
                 $scope.columns = Columns;
 
@@ -419,7 +418,7 @@
                 );
 
                 $scope.done = function () {
-                    $modalInstance.close({});
+                    $uibModalInstance.close({});
                 };
 
                 $scope.add = function() {
@@ -496,7 +495,7 @@
                 };
 
                 $scope.edit = function (food) {
-                    var modalInstance = $modal.open({
+                    var modalInstance = $uibModal.open({
                         animation: true,
                         backdrop: 'static',
                         size: 'lg',
@@ -521,17 +520,17 @@
                 };
 
             }])
-            .controller('DietFoodEditor', ['$scope', '$modalInstance', 'Food', 'Columns', 'SelectedFood', function($scope, $modalInstance, Food, Columns, SelectedFood) {
+            .controller('DietFoodEditor', ['$scope', '$uibModalInstance', 'Food', 'Columns', 'SelectedFood', function($scope, $uibModalInstance, Food, Columns, SelectedFood) {
 
                 $scope.columns = Columns;
                 $scope.selectedFood = SelectedFood;
 
                 $scope.delete = function () {
-                    $modalInstance.close({delete: true});
+                    $uibModalInstance.close({delete: true});
                 };
 
                 $scope.done = function () {
-                    $modalInstance.close({});
+                    $uibModalInstance.close({});
                 };
 
                 var getSet = function(key, _newValue) {
@@ -574,7 +573,7 @@
                 $scope.gs_wwpoints = function() { return arguments.length ? getSet('wwpoints', arguments[0]) : getSet('wwpoints'); }
 
             }])
-            .controller('DietArchiveEntries', ['$scope', '$filter', '$modalInstance', 'DietEntry', 'Query', 'ArchiveDietEntries', function($scope, $filter, $modalInstance, DietEntry, Query, ArchiveDietEntries) {
+            .controller('DietArchiveEntries', ['$scope', '$filter', '$uibModalInstance', 'DietEntry', 'Query', 'ArchiveDietEntries', function($scope, $filter, $uibModalInstance, DietEntry, Query, ArchiveDietEntries) {
 
                 $scope.archiveId = "";
                 $scope.archivedEntryCount =  '(count unknown)';
@@ -664,7 +663,7 @@
                             var rowCount = response.count;
                             var archive = headers('Location');
                             alert(rowCount + ' items written to ' + archive);
-                            $modalInstance.close({});
+                            $uibModalInstance.close({});
                         },
                         function() { // failure
                             console.error({f: 'DietArchiveEntries submit', s: 'failure', a: arguments});
@@ -677,7 +676,7 @@
                     $scope.archiveId = "x";
                     $scope.archiveId.$valid = true;
                     $scope.archiveDietEntriesForm.$valid = true;
-                    $modalInstance.close({});
+                    $uibModalInstance.close({});
                 };
 
                 $scope.getSetArchiveList = function(_newValue) {
@@ -795,7 +794,7 @@
                             <div class="col-xs-8 col-sm-7 input-group">
                                 <input type="date" class="form-control"
                                     name="selectedDate" id="selectedDate"
-                                    datepicker-popup show-button-bar="false" show-weeks="false" is-open="isOpen"
+                                    uib-datepicker-popup show-button-bar="false" show-weeks="false" is-open="isOpen"
                                     data-ng-click="isOpen = !isOpen; $event.preventDefault();"
                                     data-ng-required="true"
                                     data-ng-model="getSetSelectedDate" data-ng-model-options="{getterSetter: true}"
@@ -844,7 +843,7 @@
                         <div class="form-group">
                             <diet-daily total of="calories"></diet-daily>
                             <diet-daily total of="protein"></diet-daily>
-                            <div collapse="xsTotalsCollapsed">
+                            <div uib-collapse="xsTotalsCollapsed">
                                 <diet-daily total of="carbohydrate"></diet-daily>
                                 <span style="display: none;"><diet-daily total of="sugar" text="of which Sugars"></diet-daily></span>
                                 <diet-daily total of="fat"></diet-daily>
@@ -856,7 +855,7 @@
                             </div>
                         </div>
                         <div class="form-group">
-                            <div collapse="xsTotalsCollapsed">
+                            <div uib-collapse="xsTotalsCollapsed">
                                 <diet-daily percentage of="protein"></diet-daily>
                                 <diet-daily percentage of="carbohydrate"></diet-daily>
                                 <diet-daily percentage of="fat"></diet-daily>
@@ -1000,7 +999,7 @@
                                     <div class="col-lg-4 input-group">
                                         <input type="date" required="required" class="form-control"
                                         name="startDate" id="startDate"
-                                        datepicker-popup show-button-bar="false" show-weeks="false" is-open="isStartOpen"
+                                        uib-datepicker-popup show-button-bar="false" show-weeks="false" is-open="isStartOpen"
                                         data-ng-click="isStartOpen = !isStartOpen; $event.preventDefault();"
                                         data-ng-required="true"
                                         data-ng-model="getSetStartDate" data-ng-model-options="{getterSetter: true}"
@@ -1015,7 +1014,7 @@
                                     <div class="col-lg-4 input-group">
                                         <input type="date" required="required" class="form-control"
                                         name="endDate" id="endDate"
-                                        datepicker-popup show-button-bar="false" show-weeks="false" is-open="isEndOpen"
+                                        uib-datepicker-popup show-button-bar="false" show-weeks="false" is-open="isEndOpen"
                                         data-ng-click="isEndOpen = !isEndOpen; $event.preventDefault();"
                                         data-ng-required="true"
                                         data-ng-model="getSetEndDate" data-ng-model-options="{getterSetter: true}"
@@ -1072,9 +1071,9 @@
                 </div>
             </script>
 
-            <script type="text/ng-template" id="template/modal/window.html">
-                <div modal-render="{{$isRendered}}" tabindex="-1" role="dialog" class="modal" modal-animation-class="fade" ng-class="{in: animate}" ng-style="{'z-index': 1050 + index*10, display: 'block'}" ng-click="close($event)">
-                    <div class="modal-dialog" style="width: 95% !important; max-height: 92% !important; overflow: auto;" ng-class="size ? 'modal-' + size : ''"><div class="modal-content" modal-transclude></div></div>
+            <script type="text/ng-template" id="uib/template/modal/window.html">
+                <div modal-render="{{$isRendered}}" tabindex="-1" role="dialog" class="modal" uib-modal-animation-class="fade" modal-in-class="in" ng-style="{'z-index': 1050 + index*10, display: 'block'}" ng-click="close($event)">
+                    <div class="modal-dialog" style="width: 95% !important; max-height: 92% !important; overflow: auto;" ng-class="size ? 'modal-' + size : ''"><div class="modal-content" uib-modal-transclude></div></div>
                 </div>
             </script>
 
